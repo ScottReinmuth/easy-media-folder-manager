@@ -1,0 +1,202 @@
+/* Make #wpbody a flex container for two-column layout */
+#wpbody {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    min-height: calc(100vh - 38px);
+}
+
+/* Sidebar styling as first child of #wpbody */
+#wpbody #emf-folder-sidebar {
+    width: 250px;
+    flex: 0 0 250px;
+    background: #f9f9f9;
+    border-right: 1px solid #ddd;
+    padding: 10px;
+    box-sizing: border-box;
+    margin-top: 10px;
+}
+
+/* Ensure #wpbody-content takes remaining space */
+#wpbody #wpbody-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-bottom: 65px;
+}
+
+/* Preserve default .wrap styling */
+#wpbody-content .wrap {
+    margin: 0 20px 0 20px;
+    padding: 0;
+}
+
+#emf-folder-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.emf-folder-item {
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.emf-folder-item:hover,
+.emf-folder-item:focus,
+.emf-folder-hover {
+    background: #e5e5e5;
+}
+
+.emf-folder-title {
+    margin-left: 5px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.attachment.ui-draggable-dragging,
+tr.ui-draggable-dragging {
+    opacity: 0.7;
+    z-index: 1000;
+}
+
+#emf-new-folder-form {
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-top: 10px;
+}
+
+#emf-new-folder-name {
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.dashicons {
+    font-size: 18px;
+    vertical-align: middle;
+}
+
+.emf-folder-placeholder {
+    background: #e5e5e5;
+    border: 1px dashed #ccc;
+    height: 40px;
+    margin: 5px 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 960px) {
+    #wpbody #emf-folder-sidebar {
+        width: 200px;
+        flex: 0 0 200px;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    #wpbody {
+        flex-direction: column;
+    }
+    #wpbody #emf-folder-sidebar {
+        width: 100%;
+        flex: 0 0 auto;
+        margin-top: 0;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+    #wpbody #wpbody-content {
+        width: 100%;
+    }
+    #wpbody-content .wrap {
+        margin: 0 10px;
+    }
+}
+
+#emf-folder-sidebar {
+    width: 200px;
+    float: left;
+    padding: 10px;
+    background: #f1f1f1;
+    border-right: 1px solid #ddd;
+}
+
+#emf-folder-list {
+    list-style: none;
+    padding: 0;
+}
+
+.emf-folder-item {
+    padding: 5px;
+    cursor: pointer;
+    position: relative;
+}
+
+.emf-folder-item:hover {
+    background: #e5e5e5;
+}
+
+.emf-folder-title {
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.emf-folder-menu-toggle {
+    line-height: 20px;
+}
+
+.emf-folder-menu {
+    z-index: 1000;
+}
+
+.emf-folder-menu a {
+    display: block;
+    text-decoration: none;
+    color: #0073aa;
+}
+
+.emf-folder-menu a:hover {
+    color: #00a0d2;
+}
+
+#emf-icon-picker {
+    width: 250px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 10px;
+    z-index: 1001;
+}
+
+#emf-icon-search {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+#emf-icon-list {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+#emf-icon-list .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    margin: 5px;
+    cursor: pointer;
+}
+
+#emf-icon-list .dashicons:hover {
+    border: 2px solid #00a0d2;
+}
+
+.emf-folder-item .dashicons {
+    vertical-align: middle;
+}
