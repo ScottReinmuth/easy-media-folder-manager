@@ -30,7 +30,7 @@ class Easy_Media_Folder_Manager {
             'label' => __('Media Folders', 'easy-media-folder-manager'),
             'public' => false,
             'show_ui' => true,
-            'hierarchical' => true, // Support subfolders
+            'hierarchical' => true,
             'show_in_rest' => true,
             'rewrite' => false,
         ]);
@@ -40,6 +40,11 @@ class Easy_Media_Folder_Manager {
      * Handle folder creation, renaming, and deletion.
      */
     public function handle_folder_actions() {
+        // Only process if the form action is set
+        if (!isset($_POST['action']) || !in_array($_POST['action'], ['Create Folder', 'Rename', 'Delete'], true)) {
+            return;
+        }
+
         if (!current_user_can('upload_files')) {
             wp_die('Unauthorized access.');
         }
@@ -50,41 +55,38 @@ class Easy_Media_Folder_Manager {
 
         $redirect_url = admin_url('upload.php?page=emfm_folders');
 
-        if (isset($_POST['action'])) {
-            if ($_POST['action'] === 'Create Folder') {
-                $folder_name = sanitize_text_field($_POST['folder_name'] ?? '');
-                if (!empty($folder_name)) {
-                    $term = wp_insert_term($folder_name, 'emfm_media_folder');
-                    if (!is_wp_error($term)) {
-                        $redirect_url = add_query_arg('message', 'created', $redirect_url);
-                        // Clear transient cache
-                        delete_transient('emfm_folders');
-                    } else {
-                        $redirect_url = add_query_arg('message', 'error', $redirect_url);
-                    }
+        if ($_POST['action'] === 'Create Folder') {
+            $folder_name = sanitize_text_field($_POST['folder_name'] ?? '');
+            if (!empty($folder_name)) {
+                $term = wp_insert_term($folder_name, 'emfm_media_folder');
+                if (!is_wp_error($term)) {
+                    $redirect_url = add_query_arg('message', 'created', $redirect_url);
+                    delete_transient('emfm_folders');
+                } else {
+                    $redirect_url = add_query_arg('message', 'error', $redirect_url);
                 }
-            } elseif ($_POST['action'] === 'Rename') {
-                $folder_id = absint($_POST['folder_id'] ?? 0);
-                $new_name = sanitize_text_field($_POST['new_folder_name'] ?? '');
-                if ($folder_id && !empty($new_name)) {
-                    $result = wp_update_term($folder_id, 'emfm_media_folder', ['name' => $new_name]);
-                    if (!is_wp_error($result)) {
-                        $redirect_url = add_query_arg('message', 'renamed', $redirect_url);
-                        delete_transient('emfm_folders');
-                    } else {
-                        $redirect_url = add_query_arg('message', 'error', $redirect_url);
-                    }
+            }
+        } elseif ($_POST['action'] === 'Rename') {
+            $folder_id = absint($_POST['folder_id'] ?? 0);
+            $new_name = sanitize_text_field($_POST['new_folder_name'] ?? '');
+            if ($folder_id && !empty($new_name)) {
+                $result = wp_update_term($folder_id, 'emfm_media_folder', ['name' => $new_name]);
+                if (!is_wp_error($result)) {
+                    $redirect_url = add_query_arg('message', 'renamed', $redirect_url);
+                    delete_transient('emfm_folders');
+                } else {
+                    $redirect_url = add_query_arg('message', 'error', $redirect_url);
                 }
-            } elseif ($_POST['action'] === 'Delete') {
-                $folder_id = absint($_POST['folder_id'] ?? 0);
-                if ($folder_id) {
-                    $result = wp_delete_term($folder_id, 'emfm_media_folder');
-                    if (!is_wp_error($result)) {
-                        $redirect_url = add_query_arg('message', 'deleted', $redirect_url);
-                        delete_transient('emfm_folders');
-                    } else {
-                        $redirect_url = add_query_arg('message', 'error', $redirect_url);
-                    }
+            }
+        } elseif ($_POST['action'] === 'Delete') {
+            $folder_id = absint($_POST['folder_id'] ?? 0);
+            if ($folder_id) {
+                $result = wp_delete_term($folder_id, 'emfm_media_folder');
+                if (!is_wp_error($result)) {
+                    $redirect_url = add_query_arg('message', 'deleted', $redirect_url);
+                    delete_transient('emfm_folders');
+                } else {
+                    $redirect_url = add_query_arg('message', 'error', $redirect_url);
                 }
             }
         }
