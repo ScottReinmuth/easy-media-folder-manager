@@ -1,0 +1,41 @@
+/* Admin styles for Easy Media Folder Manager */
+.emfm-folder-select {
+    width: 150px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.emfm-folder-select:focus {
+    outline: none;
+    border-color: #0073aa;
+    box-shadow: 0 0 5px rgba(0, 115, 170, 0.3);
+}
+
+.wrap form {
+    margin-bottom: 20px;
+}
+
+.wrap form input[type="text"] {
+    width: 200px;
+    padding: 8px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.wrap form input[type="submit"] {
+    padding: 8px 16px;
+}
+
+.wp-list-table th,
+.wp-list-table td {
+    padding: 12px;
+}
+
+.notice-success,
+.notice-error {
+    padding: 10px;
+    border-radius: 4px;
+}
