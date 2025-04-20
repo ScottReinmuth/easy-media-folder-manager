@@ -17,52 +17,6 @@ jQuery(document).ready(function($) {
         return { $items, selector };
     }
 
-    // Sort folders
-    function sortFolders(sortBy) {
-        const $folderList = $('#emf-folder-list');
-        const $folders = $folderList.find('.emf-folder-item').not('[data-folder-id="0"]');
-        const foldersArray = $folders.toArray();
-
-        if (sortBy === 'manual') {
-            foldersArray.sort((a, b) => {
-                const aId = $(a).data('folder-id');
-                const bId = $(b).data('folder-id');
-                const aFolder = emf_data.folders.find(f => f.term_id == aId);
-                const bFolder = emf_data.folders.find(f => f.term_id == bId);
-                const aOrder = aFolder && aFolder.meta && aFolder.meta.emf_folder_order !== null ? aFolder.meta.emf_folder_order : Infinity;
-                const bOrder = bFolder && bFolder.meta && bFolder.meta.emf_folder_order !== null ? bFolder.meta.emf_folder_order : Infinity;
-                return aOrder - bOrder;
-            });
-        } else {
-            foldersArray.sort((a, b) => {
-                const aId = $(a).data('folder-id');
-                const bId = $(b).data('folder-id');
-                const aFolder = emf_data.folders.find(f => f.term_id == aId);
-                const bFolder = emf_data.folders.find(f => f.term_id == bId);
-                switch (sortBy) {
-                    case 'name-asc':
-                        return $(a).find('.emf-folder-title').text().localeCompare($(b).find('.emf-folder-title').text());
-                    case 'name-desc':
-                        return $(b).find('.emf-folder-title').text().localeCompare($(a).find('.emf-folder-title').text());
-                    case 'date-asc':
-                        return (aFolder ? aFolder.term_id : 0) - (bFolder ? bFolder.term_id : 0);
-                    case 'date-desc':
-                        return (bFolder ? bFolder.term_id : 0) - (aFolder ? aFolder.term_id : 0);
-                    case 'count-asc':
-                        return (aFolder ? aFolder.count || 0 : 0) - (bFolder ? bFolder.count || 0 : 0);
-                    case 'count-desc':
-                        return (bFolder ? bFolder.count || 0 : 0) - (aFolder ? aFolder.count || 0 : 0);
-                }
-            });
-        }
-
-        $folderList.empty();
-        $folderList.append('<li class="emf-folder-item" data-folder-id="0"><span class="dashicons dashicons-portfolio"></span><span class="emf-folder-title">All Media</span></li>');
-        $.each(foldersArray, function(index, folder) {
-            $folderList.append(folder);
-        });
-    }
-
     // Initialize drag-and-drop and sortable
     function initializeDragAndDrop() {
         if (window.emfDragAndDropInitialized) return;
@@ -76,11 +30,11 @@ jQuery(document).ready(function($) {
                 if (!mediaId) return;
 
                 const folderId = $(this).data('folder-id');
-                $.post(emf_data.ajax_url, {
-                    action: 'emf_assign_folder',
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_assign_folder',
                     media_id: mediaId,
                     folder_id: folderId,
-                    nonce: emf_data.nonce
+                    nonce: emfm_data.nonce
                 }).done(response => {
                     if (response.success) {
                         window.location.reload();
@@ -113,23 +67,15 @@ jQuery(document).ready(function($) {
             placeholder: 'emf-folder-placeholder',
             update: function() {
                 const order = $(this).sortable('toArray', { attribute: 'data-folder-id' });
-                $.post(emf_data.ajax_url, {
-                    action: 'emf_save_folder_order',
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_save_folder_order',
                     order: order,
-                    nonce: emf_data.nonce
+                    nonce: emfm_data.nonce
                 }).done(response => {
                     if (response.success) {
-                        $.each(order, function(index, termId) {
-                            const folder = emf_data.folders.find(f => f.term_id == termId);
-                            if (folder) {
-                                folder.meta = folder.meta || {};
-                                folder.meta.emf_folder_order = index;
-                            }
-                        });
                         $('#emf-folder-sort').val('manual');
-                        localStorage.setItem('emf_folder_sort', 'manual');
-                        console.log('Manual order saved:', localStorage.getItem('emf_folder_sort'));
-                        sortFolders('manual');
+                        localStorage.setItem('emfm_folder_sort', 'manual');
+                        applySavedSort();
                     } else {
                         alert('Error saving order: ' + (response.data || 'Unknown error'));
                     }
@@ -143,23 +89,31 @@ jQuery(document).ready(function($) {
 
     // Apply saved sort
     function applySavedSort() {
-        const savedSort = localStorage.getItem('emf_folder_sort') || 'manual';
+        const savedSort = localStorage.getItem('emfm_folder_sort') || 'manual';
         const $sortSelect = $('#emf-folder-sort');
         const $folderList = $('#emf-folder-list');
-        console.log('Applying sort:', savedSort, 'Dropdown exists:', !!$sortSelect.length, 'Sortable initialized:', $folderList.hasClass('ui-sortable'));
-        
+
         if ($sortSelect.length) {
             $sortSelect.val(savedSort);
-            sortFolders(savedSort);
-            if ($folderList.hasClass('ui-sortable')) {
-                if (savedSort === 'manual') {
-                    $folderList.sortable('enable');
+            $.post(emfm_data.ajax_url, {
+                action: 'emfm_sort_folders',
+                sort_by: savedSort,
+                nonce: emfm_data.nonce
+            }).done(response => {
+                if (response.success) {
+                    $folderList.html(response.data.html);
+                    if ($folderList.hasClass('ui-sortable')) {
+                        if (savedSort === 'manual') {
+                            $folderList.sortable('enable');
+                        } else {
+                            $folderList.sortable('disable');
+                        }
+                    }
                 } else {
-                    $folderList.sortable('disable');
+                    alert('Error: ' + (response.data || 'Unknown error'));
                 }
-            }
+            }).fail(() => alert('AJAX failed'));
         } else {
-            console.log('Retrying applySavedSort...');
             setTimeout(applySavedSort, 100);
         }
     }
@@ -261,10 +215,10 @@ jQuery(document).ready(function($) {
             alert('Please enter a folder name');
             return;
         }
-        $.post(emf_data.ajax_url, {
-            action: 'emf_create_folder',
+        $.post(emfm_data.ajax_url, {
+            action: 'emfm_create_folder',
             folder_name: folderName,
-            nonce: emf_data.nonce
+            nonce: emfm_data.nonce
         }).done(response => {
             if (response.success) {
                 const folder = response.data;
@@ -282,9 +236,8 @@ jQuery(document).ready(function($) {
                 $newItem.droppable($('.emf-folder-item').droppable('option'));
                 $('#emf-new-folder-form').slideUp();
                 $('#emf-new-folder-name').val('');
-                emf_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' } });
-                const currentSort = $('#emf-folder-sort').val();
-                sortFolders(currentSort);
+                emfm_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' } });
+                applySavedSort();
             } else {
                 alert('Error: ' + (response.data || 'Unknown error'));
             }
@@ -295,22 +248,13 @@ jQuery(document).ready(function($) {
             return; // Prevent navigation if clicking menu, toggle, or icon picker
         }
         const folderId = $(this).data('folder-id');
-        const folder = folderId === 0 ? null : emf_data.folders.find(f => f.term_id == folderId);
+        const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
         const newUrl = 'upload.php' + (folder ? '?media_folder=' + folder.slug : '');
         window.location.href = newUrl;
     }).on('change', '#emf-folder-sort', function() {
         const sortBy = $(this).val();
-        localStorage.setItem('emf_folder_sort', sortBy);
-        console.log('Sort changed to:', sortBy, 'Stored:', localStorage.getItem('emf_folder_sort'));
-        sortFolders(sortBy);
-        const $folderList = $('#emf-folder-list');
-        if ($folderList.hasClass('ui-sortable')) {
-            if (sortBy === 'manual') {
-                $folderList.sortable('enable');
-            } else {
-                $folderList.sortable('disable');
-            }
-        }
+        localStorage.setItem('emfm_folder_sort', sortBy);
+        applySavedSort();
     }).on('click', '.emf-folder-menu-toggle', function(e) {
         e.preventDefault();
         const $menu = $(this).siblings('.emf-folder-menu');
@@ -323,21 +267,20 @@ jQuery(document).ready(function($) {
         const currentName = $folderItem.find('.emf-folder-title').text();
         const newName = prompt('Enter new folder name:', currentName);
         if (newName && newName !== currentName) {
-            $.post(emf_data.ajax_url, {
-                action: 'emf_rename_folder',
+            $.post(emfm_data.ajax_url, {
+                action: 'emfm_rename_folder',
                 folder_id: folderId,
                 folder_name: newName,
-                nonce: emf_data.nonce
+                nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
                     $folderItem.find('.emf-folder-title').text(newName);
-                    const folder = emf_data.folders.find(f => f.term_id == folderId);
+                    const folder = emfm_data.folders.find(f => f.term_id == folderId);
                     if (folder) {
                         folder.name = newName;
                         folder.slug = response.data.slug;
                     }
-                    const currentSort = $('#emf-folder-sort').val();
-                    sortFolders(currentSort);
+                    applySavedSort();
                 } else {
                     alert('Error: ' + (response.data || 'Unknown error'));
                 }
@@ -347,16 +290,15 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         const folderId = $(this).data('folder-id');
         if (confirm('Are you sure you want to delete this folder? Media items will be unassigned.')) {
-            $.post(emf_data.ajax_url, {
-                action: 'emf_delete_folder',
+            $.post(emfm_data.ajax_url, {
+                action: 'emfm_delete_folder',
                 folder_id: folderId,
-                nonce: emf_data.nonce
+                nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
                     $(this).closest('.emf-folder-item').remove();
-                    emf_data.folders = emf_data.folders.filter(f => f.term_id != folderId);
-                    const currentSort = $('#emf-folder-sort').val();
-                    sortFolders(currentSort);
+                    emfm_data.folders = emfm_data.folders.filter(f => f.term_id != folderId);
+                    applySavedSort();
                 } else {
                     alert('Error: ' + (response.data || 'Unknown error'));
                 }
@@ -366,7 +308,7 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         const folderId = $(this).data('folder-id');
         const $folderItem = $(this).closest('.emf-folder-item');
-        const currentIcon = emf_data.folders.find(f => f.term_id == folderId).meta.emf_folder_icon;
+        const currentIcon = emfm_data.folders.find(f => f.term_id == folderId).meta.emf_folder_icon;
 
         // Build scrollable, searchable icon picker
         let pickerHtml = `
@@ -403,15 +345,15 @@ jQuery(document).ready(function($) {
         $('#emf-icon-list').on('click', '.dashicons', function(e) {
             e.stopPropagation(); // Prevent bubbling
             const newIcon = $(this).data('icon');
-            $.post(emf_data.ajax_url, {
-                action: 'emf_update_folder_icon',
+            $.post(emfm_data.ajax_url, {
+                action: 'emfm_update_folder_icon',
                 folder_id: folderId,
                 icon: newIcon,
-                nonce: emf_data.nonce
+                nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
                     $folderItem.find('.dashicons').first().removeClass().addClass('dashicons ' + newIcon);
-                    const folder = emf_data.folders.find(f => f.term_id == folderId);
+                    const folder = emfm_data.folders.find(f => f.term_id == folderId);
                     if (folder) {
                         folder.meta.emf_folder_icon = newIcon;
                     }

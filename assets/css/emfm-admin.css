@@ -117,34 +117,6 @@ tr.ui-draggable-dragging {
     }
 }
 
-#emf-folder-sidebar {
-    width: 200px;
-    float: left;
-    padding: 10px;
-    background: #f1f1f1;
-    border-right: 1px solid #ddd;
-}
-
-#emf-folder-list {
-    list-style: none;
-    padding: 0;
-}
-
-.emf-folder-item {
-    padding: 5px;
-    cursor: pointer;
-    position: relative;
-}
-
-.emf-folder-item:hover {
-    background: #e5e5e5;
-}
-
-.emf-folder-title {
-    margin-left: 5px;
-    vertical-align: middle;
-}
-
 .emf-folder-menu-toggle {
     line-height: 20px;
 }
