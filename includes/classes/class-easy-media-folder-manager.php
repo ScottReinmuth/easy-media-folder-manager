@@ -28,6 +28,11 @@ class Easy_Media_Folder_Manager {
      * Register media folder taxonomy and set up filtering.
      */
     public function register_taxonomy() {
+        // Check for existing taxonomy to avoid conflicts
+        if (taxonomy_exists('emfm_media_folder')) {
+            return;
+        }
+
         $labels = [
             'name' => _x('Media Folders', 'taxonomy general name', 'easy-media-folder-manager'),
             'singular_name' => _x('Media Folder', 'taxonomy singular name', 'easy-media-folder-manager'),
@@ -81,16 +86,25 @@ class Easy_Media_Folder_Manager {
      * Create a new folder.
      *
      * @param string $folder_name Folder name.
-     * @return array|WP_Error Term data or error.
+     * @param int    $parent_id   Parent folder ID (optional).
+     * @return WP_Term|WP_Error Term data or error.
      */
-    public function create_folder($folder_name) {
+    public function create_folder($folder_name, $parent_id = 0) {
+        if (!current_user_can('manage_categories')) {
+            return new WP_Error('unauthorized', __('Insufficient permissions', 'easy-media-folder-manager'));
+        }
+
         $folder_name = sanitize_text_field($folder_name);
+        $parent_id = absint($parent_id);
         if (empty($folder_name)) {
             return new WP_Error('empty_name', __('Folder name cannot be empty', 'easy-media-folder-manager'));
         }
-        $term = wp_insert_term($folder_name, 'emfm_media_folder');
+
+        $term = wp_insert_term($folder_name, 'emfm_media_folder', ['parent' => $parent_id]);
         if (!is_wp_error($term)) {
-            delete_transient('emfm_folders');
+            $folders = get_transient('emfm_folders') ?: [];
+            $folders[] = get_term($term['term_id'], 'emfm_media_folder');
+            set_transient('emfm_folders', $folders, HOUR_IN_SECONDS);
             return get_term($term['term_id'], 'emfm_media_folder');
         }
         return $term;
@@ -101,17 +115,29 @@ class Easy_Media_Folder_Manager {
      *
      * @param int    $folder_id   Folder ID.
      * @param string $new_name    New folder name.
-     * @return array|WP_Error Term data or error.
+     * @return WP_Term|WP_Error Term data or error.
      */
     public function rename_folder($folder_id, $new_name) {
+        if (!current_user_can('manage_categories')) {
+            return new WP_Error('unauthorized', __('Insufficient permissions', 'easy-media-folder-manager'));
+        }
+
         $folder_id = absint($folder_id);
         $new_name = sanitize_text_field($new_name);
         if (!$folder_id || empty($new_name)) {
-            return new WP_Error('invalid_input', __('Invalid folder ID or name', 'easy-media-folder-manager'));
+            return new WP_Error('invalid_input', __('Invalid folder ID or name: ' . $folder_id . ', ' . $new_name, 'easy-media-folder-manager'));
         }
+
         $result = wp_update_term($folder_id, 'emfm_media_folder', ['name' => $new_name, 'slug' => sanitize_title($new_name)]);
         if (!is_wp_error($result)) {
-            delete_transient('emfm_folders');
+            $folders = get_transient('emfm_folders') ?: [];
+            foreach ($folders as &$folder) {
+                if ($folder->term_id == $folder_id) {
+                    $folder = get_term($folder_id, 'emfm_media_folder');
+                    break;
+                }
+            }
+            set_transient('emfm_folders', $folders, HOUR_IN_SECONDS);
             return get_term($folder_id, 'emfm_media_folder');
         }
         return $result;
@@ -124,19 +150,29 @@ class Easy_Media_Folder_Manager {
      * @return bool|WP_Error True on success, error on failure.
      */
     public function delete_folder($folder_id) {
+        if (!current_user_can('manage_categories')) {
+            return new WP_Error('unauthorized', __('Insufficient permissions', 'easy-media-folder-manager'));
+        }
+
         $folder_id = absint($folder_id);
         if (!$folder_id) {
-            return new WP_Error('invalid_id', __('Invalid folder ID', 'easy-media-folder-manager'));
+            return new WP_Error('invalid_id', __('Invalid folder ID: ' . $folder_id, 'easy-media-folder-manager'));
         }
+
         $media = get_objects_in_term($folder_id, 'emfm_media_folder');
         if (!empty($media)) {
             foreach ($media as $media_id) {
                 wp_remove_object_terms($media_id, $folder_id, 'emfm_media_folder');
             }
         }
+
         $result = wp_delete_term($folder_id, 'emfm_media_folder');
         if (!is_wp_error($result)) {
-            delete_transient('emfm_folders');
+            $folders = get_transient('emfm_folders') ?: [];
+            $folders = array_filter($folders, function($folder) use ($folder_id) {
+                return $folder->term_id != $folder_id;
+            });
+            set_transient('emfm_folders', $folders, HOUR_IN_SECONDS);
             return true;
         }
         return $result;
@@ -150,13 +186,17 @@ class Easy_Media_Folder_Manager {
      * @return bool|WP_Error True on success, error on failure.
      */
     public function update_folder_icon($folder_id, $icon) {
+        if (!current_user_can('manage_categories')) {
+            return new WP_Error('unauthorized', __('Insufficient permissions', 'easy-media-folder-manager'));
+        }
+
         $folder_id = absint($folder_id);
         $icon = sanitize_text_field($icon);
         if (!$folder_id || !$icon) {
-            return new WP_Error('invalid_input', __('Invalid folder ID or icon', 'easy-media-folder-manager'));
+            return new WP_Error('invalid_input', __('Invalid folder ID or icon: ' . $folder_id . ', ' . $icon, 'easy-media-folder-manager'));
         }
         if (strpos($icon, 'dashicons-') !== 0) {
-            return new WP_Error('invalid_icon', __('Invalid icon class', 'easy-media-folder-manager'));
+            return new WP_Error('invalid_icon', __('Invalid icon class: ' . $icon, 'easy-media-folder-manager'));
         }
         update_term_meta($folder_id, 'emf_folder_icon', $icon);
         return true;
@@ -169,7 +209,7 @@ class Easy_Media_Folder_Manager {
         if (!isset($_POST['action']) || !in_array($_POST['action'], ['Create Folder', 'Rename', 'Delete'], true)) {
             return;
         }
-        if (!current_user_can('upload_files') || !wp_verify_nonce($_POST['emfm_nonce'], 'emfm_folder_action')) {
+        if (!current_user_can('manage_categories') || !wp_verify_nonce($_POST['emfm_nonce'], 'emfm_folder_action')) {
             wp_die('Unauthorized access.');
         }
 
@@ -177,7 +217,8 @@ class Easy_Media_Folder_Manager {
         $message = 'error';
 
         if ($_POST['action'] === 'Create Folder') {
-            $result = $this->create_folder($_POST['folder_name'] ?? '');
+            $parent_id = absint($_POST['parent_folder'] ?? 0);
+            $result = $this->create_folder($_POST['folder_name'] ?? '', $parent_id);
             if (!is_wp_error($result)) {
                 $message = 'created';
             }
@@ -200,7 +241,7 @@ class Easy_Media_Folder_Manager {
     /**
      * Get all media folders with caching.
      *
-     * @return array List of folder terms.
+     * @return WP_Term[] List of folder terms.
      */
     public function get_folders() {
         $transient_key = 'emfm_folders';
@@ -220,49 +261,66 @@ class Easy_Media_Folder_Manager {
     }
 
     /**
+     * Get folder metadata.
+     *
+     * @param WP_Term $folder Folder term.
+     * @return array Metadata array.
+     */
+    private function get_folder_meta($folder) {
+        $order = get_term_meta($folder->term_id, 'emf_folder_order', true);
+        $icon = get_term_meta($folder->term_id, 'emf_folder_icon', true);
+        return [
+            'emf_folder_order' => $order !== '' ? (int)$order : null,
+            'emf_folder_icon' => $icon ?: 'dashicons-folder',
+        ];
+    }
+
+    /**
      * Get sorted folders.
      *
      * @param string $sort_by Sorting method (name-asc, manual, etc.).
-     * @return array Sorted folder terms.
+     * @return WP_Term[] Sorted folder terms.
      */
     public function get_sorted_folders($sort_by = 'name-asc') {
-        $folders = $this->get_folders();
-        if (empty($folders)) {
-            return $folders;
-        }
+        $transient_key = 'emfm_sorted_folders_' . md5($sort_by);
+        $folders = get_transient($transient_key);
 
-        foreach ($folders as &$folder) {
-            $order = get_term_meta($folder->term_id, 'emf_folder_order', true);
-            $icon = get_term_meta($folder->term_id, 'emf_folder_icon', true);
-            $folder->meta = [
-                'emf_folder_order' => $order !== '' ? (int)$order : null,
-                'emf_folder_icon' => $icon ?: 'dashicons-folder',
-            ];
-        }
-        unset($folder);
-
-        usort($folders, function ($a, $b) use ($sort_by) {
-            switch ($sort_by) {
-                case 'name-asc':
-                    return strcasecmp($a->name, $b->name);
-                case 'name-desc':
-                    return strcasecmp($b->name, $a->name);
-                case 'date-asc':
-                    return $a->term_id - $b->term_id;
-                case 'date-desc':
-                    return $b->term_id - $a->term_id;
-                case 'count-asc':
-                    return ($a->count ?? 0) - ($b->count ?? 0);
-                case 'count-desc':
-                    return ($b->count ?? 0) - ($a->count ?? 0);
-                case 'manual':
-                    $a_order = get_term_meta($a->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
-                    $b_order = get_term_meta($b->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
-                    return $a_order - $b_order;
-                default:
-                    return 0;
+        if (false === $folders) {
+            $folders = $this->get_folders();
+            if (empty($folders)) {
+                return $folders;
             }
-        });
+
+            foreach ($folders as &$folder) {
+                $folder->meta = $this->get_folder_meta($folder);
+            }
+            unset($folder);
+
+            usort($folders, function ($a, $b) use ($sort_by) {
+                switch ($sort_by) {
+                    case 'name-asc':
+                        return strcasecmp($a->name, $b->name);
+                    case 'name-desc':
+                        return strcasecmp($b->name, $a->name);
+                    case 'date-asc':
+                        return $a->term_id - $b->term_id;
+                    case 'date-desc':
+                        return $b->term_id - $a->term_id;
+                    case 'count-asc':
+                        return ($a->count ?? 0) - ($b->count ?? 0);
+                    case 'count-desc':
+                        return ($b->count ?? 0) - ($a->count ?? 0);
+                    case 'manual':
+                        $a_order = get_term_meta($a->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
+                        $b_order = get_term_meta($b->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
+                        return $a_order - $b_order;
+                    default:
+                        return 0;
+                }
+            });
+
+            set_transient($transient_key, $folders, HOUR_IN_SECONDS);
+        }
 
         return $folders;
     }
@@ -272,26 +330,26 @@ class Easy_Media_Folder_Manager {
      */
     public function ajax_move_media() {
         $plugin = EMFM_Plugin::get_instance();
-        if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-            wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+        if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+            emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         }
 
         $media_id = absint($_POST['media_id'] ?? 0);
         $folder_id = absint($_POST['folder_id'] ?? 0);
 
         if (!current_user_can('edit_post', $media_id)) {
-            wp_send_json_error(__('Unauthorized access.', 'easy-media-folder-manager'));
+            emfm_send_error(__('Unauthorized access.', 'easy-media-folder-manager'));
         }
 
         if ($media_id) {
             $result = wp_set_object_terms($media_id, $folder_id ? $folder_id : [], 'emfm_media_folder', false);
             if (!is_wp_error($result)) {
-                wp_send_json_success();
+                wp_send_json_success(['message' => __('Media moved successfully', 'easy-media-folder-manager')]);
             } else {
-                wp_send_json_error(__('Failed to move media.', 'easy-media-folder-manager'));
+                emfm_send_error(__('Failed to move media.', 'easy-media-folder-manager'));
             }
         } else {
-            wp_send_json_error(__('Invalid media or folder ID.', 'easy-media-folder-manager'));
+            emfm_send_error(__('Invalid media or folder ID.', 'easy-media-folder-manager'));
         }
     }
 
@@ -306,11 +364,12 @@ class Easy_Media_Folder_Manager {
         $terms = $this->get_folders();
         $selected_terms = wp_get_object_terms($post->ID, 'emfm_media_folder', ['fields' => 'ids']);
 
-        $dropdown = '<select name="attachments[' . $post->ID . '][media_folder][]">';
+        $dropdown = '<select name="attachments[' . $post->ID . '][media_folder][]" aria-label="' . esc_attr__('Select media folder', 'easy-media-folder-manager') . '">';
         $dropdown .= '<option value="">' . __('No Folder', 'easy-media-folder-manager') . '</option>';
         foreach ($terms as $term) {
+            $indent = $term->parent ? str_repeat('&nbsp;&nbsp;', $this->get_term_depth($term)) : '';
             $selected = in_array($term->term_id, $selected_terms) ? ' selected' : '';
-            $dropdown .= '<option value="' . esc_attr($term->term_id) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+            $dropdown .= '<option value="' . esc_attr($term->term_id) . '"' . $selected . '>' . $indent . esc_html($term->name) . '</option>';
         }
         $dropdown .= '</select>';
 
@@ -321,6 +380,21 @@ class Easy_Media_Folder_Manager {
         ];
 
         return $form_fields;
+    }
+
+    /**
+     * Get term depth for indentation.
+     *
+     * @param WP_Term $term Term object.
+     * @return int Depth level.
+     */
+    private function get_term_depth($term) {
+        $depth = 0;
+        while ($term->parent) {
+            $depth++;
+            $term = get_term($term->parent, 'emfm_media_folder');
+        }
+        return $depth;
     }
 
     /**
@@ -340,4 +414,3 @@ class Easy_Media_Folder_Manager {
         return $post;
     }
 }
-?>
