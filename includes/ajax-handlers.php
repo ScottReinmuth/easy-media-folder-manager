@@ -10,12 +10,22 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Send standardized error response.
+ *
+ * @param string $message Error message.
+ */
+function emfm_send_error($message) {
+    error_log('EMFM Error: ' . $message);
+    wp_send_json_error(['message' => $message]);
+}
+
+/**
  * Assign media to a folder.
  */
 function emfm_assign_folder_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
@@ -23,16 +33,16 @@ function emfm_assign_folder_callback() {
     $folder_id = absint($_POST['folder_id'] ?? 0);
 
     if (!$media_id) {
-        wp_send_json_error(__('Invalid media_id', 'easy-media-folder-manager'));
+        emfm_send_error(__('Invalid media ID', 'easy-media-folder-manager'));
         return;
     }
 
     $core = new Easy_Media_Folder_Manager();
     $result = wp_set_object_terms($media_id, $folder_id ? $folder_id : [], 'emfm_media_folder', false);
     if (!is_wp_error($result)) {
-        wp_send_json_success(__('Media assigned successfully', 'easy-media-folder-manager'));
+        wp_send_json_success(['message' => __('Media assigned successfully', 'easy-media-folder-manager')]);
     } else {
-        wp_send_json_error(__('Failed to assign media', 'easy-media-folder-manager'));
+        emfm_send_error(__('Failed to assign media', 'easy-media-folder-manager'));
     }
 }
 add_action('wp_ajax_emfm_assign_folder', 'emfm_assign_folder_callback');
@@ -42,13 +52,13 @@ add_action('wp_ajax_emfm_assign_folder', 'emfm_assign_folder_callback');
  */
 function emfm_create_folder_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error(__('Permission denied', 'easy-media-folder-manager'));
+    if (!current_user_can('manage_categories')) {
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
         return;
     }
 
@@ -61,7 +71,7 @@ function emfm_create_folder_callback() {
             'slug' => $result->slug,
         ]);
     } else {
-        wp_send_json_error($result->get_error_message());
+        emfm_send_error($result->get_error_message());
     }
 }
 add_action('wp_ajax_emfm_create_folder', 'emfm_create_folder_callback');
@@ -71,22 +81,26 @@ add_action('wp_ajax_emfm_create_folder', 'emfm_create_folder_callback');
  */
 function emfm_rename_folder_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
     if (!current_user_can('manage_categories')) {
-        wp_send_json_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
         return;
     }
 
     $core = new Easy_Media_Folder_Manager();
     $result = $core->rename_folder($_POST['folder_id'] ?? 0, $_POST['folder_name'] ?? '');
     if (!is_wp_error($result)) {
-        wp_send_json_success(['slug' => $result->slug]);
+        wp_send_json_success([
+            'id' => $result->term_id,
+            'name' => $result->name,
+            'slug' => $result->slug,
+        ]);
     } else {
-        wp_send_json_error($result->get_error_message());
+        emfm_send_error($result->get_error_message());
     }
 }
 add_action('wp_ajax_emfm_rename_folder', 'emfm_rename_folder_callback');
@@ -96,22 +110,22 @@ add_action('wp_ajax_emfm_rename_folder', 'emfm_rename_folder_callback');
  */
 function emfm_delete_folder_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
     if (!current_user_can('manage_categories')) {
-        wp_send_json_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
         return;
     }
 
     $core = new Easy_Media_Folder_Manager();
     $result = $core->delete_folder($_POST['folder_id'] ?? 0);
     if (!is_wp_error($result)) {
-        wp_send_json_success();
+        wp_send_json_success(['message' => __('Folder deleted successfully', 'easy-media-folder-manager')]);
     } else {
-        wp_send_json_error($result->get_error_message());
+        emfm_send_error($result->get_error_message());
     }
 }
 add_action('wp_ajax_emfm_delete_folder', 'emfm_delete_folder_callback');
@@ -121,22 +135,28 @@ add_action('wp_ajax_emfm_delete_folder', 'emfm_delete_folder_callback');
  */
 function emfm_update_folder_icon_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
     if (!current_user_can('manage_categories')) {
-        wp_send_json_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        return;
+    }
+
+    $icon = sanitize_text_field($_POST['icon'] ?? '');
+    if (strpos($icon, 'dashicons-') !== 0) {
+        emfm_send_error(__('Invalid icon class', 'easy-media-folder-manager'));
         return;
     }
 
     $core = new Easy_Media_Folder_Manager();
-    $result = $core->update_folder_icon($_POST['folder_id'] ?? 0, $_POST['icon'] ?? '');
+    $result = $core->update_folder_icon($_POST['folder_id'] ?? 0, $icon);
     if (!is_wp_error($result)) {
-        wp_send_json_success();
+        wp_send_json_success(['message' => __('Folder icon updated successfully', 'easy-media-folder-manager')]);
     } else {
-        wp_send_json_error($result->get_error_message());
+        emfm_send_error($result->get_error_message());
     }
 }
 add_action('wp_ajax_emfm_update_folder_icon', 'emfm_update_folder_icon_callback');
@@ -146,27 +166,29 @@ add_action('wp_ajax_emfm_update_folder_icon', 'emfm_update_folder_icon_callback'
  */
 function emfm_save_folder_order_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error(__('Permission denied', 'easy-media-folder-manager'));
+    if (!current_user_can('manage_categories')) {
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
         return;
     }
 
     $order = isset($_POST['order']) ? array_map('intval', (array) $_POST['order']) : [];
     if (empty($order)) {
-        wp_send_json_error(__('No order data provided', 'easy-media-folder-manager'));
+        emfm_send_error(__('No order data provided', 'easy-media-folder-manager'));
         return;
     }
 
     foreach ($order as $menu_order => $term_id) {
-        update_term_meta($term_id, 'emf_folder_order', $menu_order);
+        if (term_exists($term_id, 'emfm_media_folder')) {
+            update_term_meta($term_id, 'emf_folder_order', $menu_order);
+        }
     }
 
-    wp_send_json_success(__('Folder order saved successfully', 'easy-media-folder-manager'));
+    wp_send_json_success(['message' => __('Folder order saved successfully', 'easy-media-folder-manager')]);
 }
 add_action('wp_ajax_emfm_save_folder_order', 'emfm_save_folder_order_callback');
 
@@ -175,8 +197,8 @@ add_action('wp_ajax_emfm_save_folder_order', 'emfm_save_folder_order_callback');
  */
 function emfm_sort_folders_callback() {
     $plugin = EMFM_Plugin::get_instance();
-    if (!$plugin->nonce_handler('emfm_action', $_POST['nonce'] ?? '')) {
-        wp_send_json_error(__('Invalid nonce', 'easy-media-folder-manager'));
+    if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
+        emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
         return;
     }
 
@@ -190,7 +212,7 @@ function emfm_sort_folders_callback() {
         <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">
             <span class="dashicons <?php echo esc_attr($folder->meta['emf_folder_icon'] ?? 'dashicons-folder'); ?>"></span>
             <span class="emf-folder-title"><?php echo esc_html($folder->name); ?></span>
-            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;"></span>
+            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
             <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
                 <a href="#" class="emf-rename-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Rename</a><br>
                 <a href="#" class="emf-delete-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Delete</a><br>
@@ -203,4 +225,3 @@ function emfm_sort_folders_callback() {
     wp_send_json_success(['html' => $html]);
 }
 add_action('wp_ajax_emfm_sort_folders', 'emfm_sort_folders_callback');
-?>
