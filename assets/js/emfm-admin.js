@@ -1,124 +1,14 @@
 jQuery(document).ready(function($) {
-    if (!$.ui || !$.ui.draggable || !$.ui.droppable || !$.ui.sortable) {
-        console.log('jQuery UI dependencies missing');
+    // Namespace for global variables
+    window.emfm = window.emfm || {};
+
+    // Check for emfm_data
+    if (typeof emfm_data === 'undefined') {
+        console.error('emfm_data is not defined');
         return;
     }
 
-    // Detect media items dynamically
-    function detectMediaItems(viewType) {
-        let $items = $(), selector = '';
-        if (viewType === 'grid') {
-            $items = $('.attachments .attachment');
-            selector = $items.length ? '.attachments .attachment' : ($('#media-items .media-item').length ? '#media-items .media-item' : '');
-        } else if (viewType === 'list') {
-            $items = $('.wp-list-table tbody tr');
-            selector = $items.length ? '.wp-list-table tbody tr' : ($('#the-list tr').length ? '#the-list tr' : '');
-        }
-        return { $items, selector };
-    }
-
-    // Initialize drag-and-drop and sortable
-    function initializeDragAndDrop() {
-        if (window.emfDragAndDropInitialized) return;
-
-        const $folders = $('.emf-folder-item:not(.ui-droppable)');
-        $folders.droppable({
-            accept: '.attachment, tr, .media-item',
-            hoverClass: 'emf-folder-hover',
-            drop: function(event, ui) {
-                const mediaId = ui.draggable.data('id') || ui.draggable.find('input[type="checkbox"]').val();
-                if (!mediaId) return;
-
-                const folderId = $(this).data('folder-id');
-                $.post(emfm_data.ajax_url, {
-                    action: 'emfm_assign_folder',
-                    media_id: mediaId,
-                    folder_id: folderId,
-                    nonce: emfm_data.nonce
-                }).done(response => {
-                    if (response.success) {
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + (response.data || 'Unknown error'));
-                    }
-                }).fail(() => alert('AJAX failed'));
-            }
-        });
-
-        const { $items: $gridItems } = detectMediaItems('grid');
-        $gridItems.not('.ui-draggable').draggable({
-            revert: 'invalid',
-            helper: 'clone',
-            start: function() { $(this).css('opacity', '0.5'); },
-            stop: function() { $(this).css('opacity', '1'); }
-        });
-
-        const { $items: $listItems } = detectMediaItems('list');
-        $listItems.not('.ui-draggable').draggable({
-            revert: 'invalid',
-            helper: 'clone',
-            start: function() { $(this).css('opacity', '0.5'); },
-            stop: function() { $(this).css('opacity', '1'); }
-        });
-
-        const $folderList = $('#emf-folder-list');
-        $folderList.sortable({
-            items: '.emf-folder-item:not([data-folder-id="0"])',
-            placeholder: 'emf-folder-placeholder',
-            update: function() {
-                const order = $(this).sortable('toArray', { attribute: 'data-folder-id' });
-                $.post(emfm_data.ajax_url, {
-                    action: 'emfm_save_folder_order',
-                    order: order,
-                    nonce: emfm_data.nonce
-                }).done(response => {
-                    if (response.success) {
-                        $('#emf-folder-sort').val('manual');
-                        localStorage.setItem('emfm_folder_sort', 'manual');
-                        applySavedSort();
-                    } else {
-                        alert('Error saving order: ' + (response.data || 'Unknown error'));
-                    }
-                }).fail(() => alert('AJAX failed'));
-            }
-        });
-
-        window.emfDragAndDropInitialized = true;
-        applySavedSort();
-    }
-
-    // Apply saved sort
-    function applySavedSort() {
-        const savedSort = localStorage.getItem('emfm_folder_sort') || 'manual';
-        const $sortSelect = $('#emf-folder-sort');
-        const $folderList = $('#emf-folder-list');
-
-        if ($sortSelect.length) {
-            $sortSelect.val(savedSort);
-            $.post(emfm_data.ajax_url, {
-                action: 'emfm_sort_folders',
-                sort_by: savedSort,
-                nonce: emfm_data.nonce
-            }).done(response => {
-                if (response.success) {
-                    $folderList.html(response.data.html);
-                    if ($folderList.hasClass('ui-sortable')) {
-                        if (savedSort === 'manual') {
-                            $folderList.sortable('enable');
-                        } else {
-                            $folderList.sortable('disable');
-                        }
-                    }
-                } else {
-                    alert('Error: ' + (response.data || 'Unknown error'));
-                }
-            }).fail(() => alert('AJAX failed'));
-        } else {
-            setTimeout(applySavedSort, 100);
-        }
-    }
-
-    // Full Dashicons list (as of WordPress 6.7)
+    // Full Dashicons list (compatible with WordPress 6.5)
     const iconOptions = [
         'dashicons-menu', 'dashicons-admin-site', 'dashicons-dashboard', 'dashicons-admin-media', 'dashicons-admin-links',
         'dashicons-admin-page', 'dashicons-admin-comments', 'dashicons-admin-appearance', 'dashicons-admin-plugins',
@@ -179,202 +69,404 @@ jQuery(document).ready(function($) {
         'dashicons-insert-after', 'dashicons-insert-before', 'dashicons-remove', 'dashicons-shortcode',
         'dashicons-table-col-after', 'dashicons-table-col-before', 'dashicons-table-col-delete', 'dashicons-table-row-after',
         'dashicons-table-row-before', 'dashicons-table-row-delete', 'dashicons-saved', 'dashicons-ellipsis',
-        'dashicons-folder', // Ensure default is included
+        'dashicons-folder' // Default icon
     ];
 
-    // Wait for sidebar and media library
-    let retryCount = 0;
-    const maxRetries = 50;
-    function waitForElements() {
-        const sidebarLoaded = $('#emf-folder-sidebar').length;
-        const mediaLoaded = $('.attachments .attachment').length || $('.wp-list-table tbody tr').length;
-        if (sidebarLoaded && mediaLoaded) {
-            initializeDragAndDrop();
-        } else if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(waitForElements, 100);
-        } else {
-            console.log('Max retries reached, forcing initialization');
-            initializeDragAndDrop();
+    // Cache jQuery selectors
+    const $folderList = $('#emf-folder-list');
+    const $sortSelect = $('#emf-folder-sort');
+
+    // Helper function for AJAX error handling
+    function handleAjaxError(xhr, status, error) {
+        console.error('AJAX error:', status, error, xhr.responseText);
+        alert('Failed to process request. Please try again or check the console for details.');
+    }
+
+    // Detect media items dynamically
+    function detectMediaItems(viewType) {
+        let $items = $(), selector = '';
+        if (viewType === 'grid') {
+            $items = $('.attachments .attachment');
+            selector = $items.length ? '.attachments .attachment' : ($('#media-items .media-item').length ? '#media-items .media-item' : '');
+        } else if (viewType === 'list') {
+            $items = $('.wp-list-table tbody tr');
+            selector = $items.length ? '.wp-list-table tbody tr' : ($('#the-list tr').length ? '#the-list tr' : '');
+        }
+        return { $items, selector };
+    }
+
+    // Initialize drag-and-drop and sortable
+    function initializeDragAndDrop() {
+        if (window.emfm.dragAndDropInitialized) return;
+
+        const $folders = $('.emf-folder-item:not(.ui-droppable)');
+        $folders.droppable({
+            accept: '.attachment, tr, .media-item',
+            hoverClass: 'emf-folder-hover',
+            drop: function(event, ui) {
+                const mediaId = ui.draggable.data('id') || ui.draggable.find('input[type="checkbox"]').val();
+                if (!mediaId) return;
+
+                const folderId = $(this).data('folder-id');
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_assign_folder',
+                    media_id: mediaId,
+                    folder_id: folderId,
+                    nonce: emfm_data.nonce
+                }).done(response => {
+                    if (response.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + (response.data || 'Unknown error'));
+                    }
+                }).fail(handleAjaxError);
+            }
+        });
+
+        const { $items: $gridItems } = detectMediaItems('grid');
+        $gridItems.not('.ui-draggable').draggable({
+            revert: 'invalid',
+            helper: 'clone',
+            start: function() { $(this).css('opacity', '0.5'); },
+            stop: function() { $(this).css('opacity', '1'); }
+        });
+
+        const { $items: $listItems } = detectMediaItems('list');
+        $listItems.not('.ui-draggable').draggable({
+            revert: 'invalid',
+            helper: 'clone',
+            start: function() { $(this).css('opacity', '0.5'); },
+            stop: function() { $(this).css('opacity', '1'); }
+        });
+
+        $folderList.sortable({
+            items: '.emf-folder-item:not([data-folder-id="0"])',
+            placeholder: 'emf-folder-placeholder',
+            update: function() {
+                const order = $(this).sortable('toArray', { attribute: 'data-folder-id' });
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_save_folder_order',
+                    order: order,
+                    nonce: emfm_data.nonce
+                }).done(response => {
+                    if (response.success) {
+                        $sortSelect.val('manual');
+                        localStorage.setItem('emfm_folder_sort', 'manual');
+                        applySavedSort();
+                    } else {
+                        alert('Error saving order: ' + (response.data || 'Unknown error'));
+                    }
+                }).fail(handleAjaxError);
+            }
+        });
+
+        window.emfm.dragAndDropInitialized = true;
+        applySavedSort();
+    }
+
+    // Apply saved sort
+    function applySavedSort() {
+        const savedSort = localStorage.getItem('emfm_folder_sort') || 'manual';
+        if ($sortSelect.length) {
+            $sortSelect.val(savedSort);
+            $.post(emfm_data.ajax_url, {
+                action: 'emfm_sort_folders',
+                sort_by: savedSort,
+                nonce: emfm_data.nonce
+            }).done(response => {
+                if (response.success) {
+                    $folderList.html(response.data.html);
+                    if ($folderList.hasClass('ui-sortable')) {
+                        if (savedSort === 'manual') {
+                            $folderList.sortable('enable');
+                        } else {
+                            $folderList.sortable('disable');
+                        }
+                    }
+                } else {
+                    alert('Error: ' + (response.data || 'Unknown error'));
+                }
+            }).fail(handleAjaxError);
         }
     }
-    waitForElements();
 
-    // Event delegation for sidebar actions
-    $(document).on('click', '#emf-folder-sidebar #emf-new-folder-btn', function(e) {
-        e.preventDefault();
-        $('#emf-new-folder-form').slideDown();
-    }).on('click', '#emf-folder-sidebar #emf-cancel-folder', function(e) {
-        e.preventDefault();
-        $('#emf-new-folder-form').slideUp();
-        $('#emf-new-folder-name').val('');
-    }).on('click', '#emf-folder-sidebar #emf-create-folder', function(e) {
-        e.preventDefault();
-        const folderName = $('#emf-new-folder-name').val().trim();
-        if (!folderName) {
-            alert('Please enter a folder name');
+    // Initialize with MutationObserver
+    function waitForElements() {
+        const targetNode = document.getElementById('wpbody');
+        if (!targetNode) {
+            console.error('wpbody not found');
             return;
         }
-        $.post(emfm_data.ajax_url, {
-            action: 'emfm_create_folder',
-            folder_name: folderName,
-            nonce: emfm_data.nonce
-        }).done(response => {
-            if (response.success) {
-                const folder = response.data;
-                const $newItem = $(`<li class="emf-folder-item" data-folder-id="${folder.id}">
-                    <span class="dashicons dashicons-folder"></span>
-                    <span class="emf-folder-title">${folder.name}</span>
-                    <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;"></span>
-                    <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
-                        <a href="#" class="emf-rename-folder" data-folder-id="${folder.id}">Rename</a><br>
-                        <a href="#" class="emf-delete-folder" data-folder-id="${folder.id}">Delete</a><br>
-                        <a href="#" class="emf-edit-icon" data-folder-id="${folder.id}">Edit Icon</a>
-                    </div>
-                </li>`);
-                $('#emf-folder-list').append($newItem);
-                $newItem.droppable($('.emf-folder-item').droppable('option'));
-                $('#emf-new-folder-form').slideUp();
-                $('#emf-new-folder-name').val('');
-                emfm_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' } });
-                applySavedSort();
-            } else {
-                alert('Error: ' + (response.data || 'Unknown error'));
+
+        const observer = new MutationObserver((mutations, obs) => {
+            const sidebarLoaded = $('#emf-folder-sidebar').length;
+            const mediaLoaded = $('.attachments .attachment').length || $('.wp-list-table tbody tr').length;
+            if (sidebarLoaded && mediaLoaded) {
+                initializeDragAndDrop();
+                obs.disconnect();
             }
-        }).fail(() => alert('AJAX failed'));
-    }).on('click', '#emf-folder-sidebar .emf-folder-item', function(e) {
-        e.preventDefault();
-        if ($(e.target).hasClass('emf-folder-menu-toggle') || $(e.target).closest('.emf-folder-menu').length || $(e.target).closest('#emf-icon-picker').length) {
-            return; // Prevent navigation if clicking menu, toggle, or icon picker
-        }
-        const folderId = $(this).data('folder-id');
-        const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
-        const newUrl = 'upload.php' + (folder ? '?media_folder=' + folder.slug : '');
-        window.location.href = newUrl;
-    }).on('change', '#emf-folder-sort', function() {
-        const sortBy = $(this).val();
-        localStorage.setItem('emfm_folder_sort', sortBy);
-        applySavedSort();
-    }).on('click', '.emf-folder-menu-toggle', function(e) {
-        e.preventDefault();
-        const $menu = $(this).siblings('.emf-folder-menu');
-        $('.emf-folder-menu').not($menu).hide();
-        $menu.toggle();
-    }).on('click', '.emf-rename-folder', function(e) {
-        e.preventDefault();
-        const folderId = $(this).data('folder-id');
-        const $folderItem = $(this).closest('.emf-folder-item');
-        const currentName = $folderItem.find('.emf-folder-title').text();
-        const newName = prompt('Enter new folder name:', currentName);
-        if (newName && newName !== currentName) {
+        });
+
+        observer.observe(targetNode, { childList: true, subtree: true });
+    }
+
+    // Handle folder creation
+    function handleFolderCreation() {
+        $('#emf-new-folder-btn').on('click', function(e) {
+            e.preventDefault();
+            $('#emf-new-folder-form').slideDown();
+        });
+
+        $('#emf-cancel-folder').on('click', function(e) {
+            e.preventDefault();
+            $('#emf-new-folder-form').slideUp();
+            $('#emf-new-folder-name').val('');
+        });
+
+        $('#emf-create-folder').on('click', function(e) {
+            e.preventDefault();
+            const folderName = $('#emf-new-folder-name').val().trim();
+            if (!folderName) {
+                alert('Please enter a folder name');
+                return;
+            }
             $.post(emfm_data.ajax_url, {
-                action: 'emfm_rename_folder',
-                folder_id: folderId,
-                folder_name: newName,
+                action: 'emfm_create_folder',
+                folder_name: folderName,
                 nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
-                    $folderItem.find('.emf-folder-title').text(newName);
-                    const folder = emfm_data.folders.find(f => f.term_id == folderId);
-                    if (folder) {
-                        folder.name = newName;
-                        folder.slug = response.data.slug;
+                    const folder = response.data;
+                    const $newItem = $(`
+                        <li class="emf-folder-item" data-folder-id="${folder.id}">
+                            <span class="dashicons dashicons-folder"></span>
+                            <span class="emf-folder-title">${folder.name}</span>
+                            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
+                            <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
+                                <a href="#" class="emf-rename-folder" data-folder-id="${folder.id}">Rename</a><br>
+                                <a href="#" class="emf-delete-folder" data-folder-id="${folder.id}">Delete</a><br>
+                                <a href="#" class="emf-edit-icon" data-folder-id="${folder.id}">Edit Icon</a>
+                            </div>
+                        </li>
+                    `);
+                    $folderList.append($newItem);
+                    $newItem.droppable($('.emf-folder-item').droppable('option'));
+                    $('#emf-new-folder-form').slideUp();
+                    $('#emf-new-folder-name').val('');
+                    emfm_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' } });
+                    applySavedSort();
+                } else {
+                    alert('Error: ' + (response.data || 'Unknown error'));
+                }
+            }).fail(handleAjaxError);
+        });
+    }
+
+    // Handle folder navigation
+    function handleFolderNavigation() {
+        $(document).on('click', '.emf-folder-item', function(e) {
+            e.preventDefault();
+            if ($(e.target).hasClass('emf-folder-menu-toggle') || $(e.target).closest('.emf-folder-menu').length || $(e.target).closest('#emf-icon-picker').length) {
+                return;
+            }
+            const folderId = $(this).data('folder-id');
+            const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
+            const newUrl = 'upload.php' + (folder ? '?media_folder=' + folder.slug : '');
+            window.location.href = newUrl;
+        });
+    }
+
+    // Handle folder sorting
+    function handleFolderSorting() {
+        $sortSelect.on('change', function() {
+            const sortBy = $(this).val();
+            localStorage.setItem('emfm_folder_sort', sortBy);
+            applySavedSort();
+        });
+    }
+
+    // Handle folder menu actions
+    function handleFolderMenuActions() {
+        $(document).on('click', '.emf-folder-menu-toggle', function(e) {
+            e.preventDefault();
+            const $menu = $(this).siblings('.emf-folder-menu');
+            $('.emf-folder-menu').not($menu).hide();
+            $menu.toggle();
+        }).on('keydown', '.emf-folder-menu-toggle', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                $(this).trigger('click');
+            }
+        });
+
+        $(document).on('click', '.emf-rename-folder', function(e) {
+            e.preventDefault();
+            const folderId = $(this).data('folder-id');
+            const $folderItem = $(this).closest('.emf-folder-item');
+            const currentName = $folderItem.find('.emf-folder-title').text();
+            const newName = prompt('Enter new folder name:', currentName);
+            if (newName && newName !== currentName) {
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_rename_folder',
+                    folder_id: folderId,
+                    folder_name: newName,
+                    nonce: emfm_data.nonce
+                }).done(response => {
+                    if (response.success) {
+                        $folderItem.find('.emf-folder-title').text(newName);
+                        const folder = emfm_data.folders.find(f => f.term_id == folderId);
+                        if (folder) {
+                            folder.name = newName;
+                            folder.slug = response.data.slug;
+                        }
+                        applySavedSort();
+                    } else {
+                        alert('Error: ' + (response.data || 'Unknown error'));
                     }
-                    applySavedSort();
-                } else {
-                    alert('Error: ' + (response.data || 'Unknown error'));
-                }
-            }).fail(() => alert('AJAX failed'));
-        }
-    }).on('click', '.emf-delete-folder', function(e) {
-        e.preventDefault();
-        const folderId = $(this).data('folder-id');
-        if (confirm('Are you sure you want to delete this folder? Media items will be unassigned.')) {
-            $.post(emfm_data.ajax_url, {
-                action: 'emfm_delete_folder',
-                folder_id: folderId,
-                nonce: emfm_data.nonce
-            }).done(response => {
-                if (response.success) {
-                    $(this).closest('.emf-folder-item').remove();
-                    emfm_data.folders = emfm_data.folders.filter(f => f.term_id != folderId);
-                    applySavedSort();
-                } else {
-                    alert('Error: ' + (response.data || 'Unknown error'));
-                }
-            }).fail(() => alert('AJAX failed'));
-        }
-    }).on('click', '.emf-edit-icon', function(e) {
-        e.preventDefault();
-        const folderId = $(this).data('folder-id');
-        const $folderItem = $(this).closest('.emf-folder-item');
-        const currentIcon = emfm_data.folders.find(f => f.term_id == folderId).meta.emf_folder_icon;
+                }).fail(handleAjaxError);
+            }
+        });
 
-        // Build scrollable, searchable icon picker
-        let pickerHtml = `
-            <div id="emf-icon-picker" style="position:absolute; background:#fff; border:1px solid #ccc; padding:10px; z-index:1001; width:250px; max-height:300px; overflow-y:auto;">
-                <input type="text" id="emf-icon-search" placeholder="Search icons..." style="width:100%; margin-bottom:10px;">
-                <div id="emf-icon-list" style="display:flex; flex-wrap:wrap;"></div>
-            </div>
-        `;
-        $('#emf-icon-picker').remove();
-        $folderItem.append(pickerHtml);
+        $(document).on('click', '.emf-delete-folder', function(e) {
+            e.preventDefault();
+            const folderId = $(this).data('folder-id');
+            if (confirm('Are you sure you want to delete this folder? Media items will be unassigned.')) {
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_delete_folder',
+                    folder_id: folderId,
+                    nonce: emfm_data.nonce
+                }).done(response => {
+                    if (response.success) {
+                        $(this).closest('.emf-folder-item').remove();
+                        emfm_data.folders = emfm_data.folders.filter(f => f.term_id != folderId);
+                        applySavedSort();
+                    } else {
+                        alert('Error: ' + (response.data || 'Unknown error'));
+                    }
+                }).fail(handleAjaxError);
+            }
+        });
 
-        // Render initial icon list
-        function renderIcons(filter = '') {
-            const $iconList = $('#emf-icon-list');
-            $iconList.empty();
-            const filteredIcons = iconOptions.filter(icon => icon.toLowerCase().includes(filter.toLowerCase()));
-            filteredIcons.forEach(icon => {
-                $iconList.append(`
-                    <span class="dashicons ${icon}" style="cursor:pointer; margin:5px; ${icon === currentIcon ? 'border:2px solid #0073aa;' : ''}" data-icon="${icon}"></span>
-                `);
+        $(document).on('click', '.emf-edit-icon', function(e) {
+            e.preventDefault();
+            const folderId = $(this).data('folder-id');
+            const $folderItem = $(this).closest('.emf-folder-item');
+            const currentIcon = emfm_data.folders.find(f => f.term_id == folderId).meta.emf_folder_icon;
+
+            let pickerHtml = `
+                <div id="emf-icon-picker" style="position:absolute; background:#fff; border:1px solid #ccc; padding:10px; z-index:1001; width:250px; max-height:300px; overflow-y:auto;">
+                    <input type="text" id="emf-icon-search" placeholder="Search icons..." style="width:100%; margin-bottom:10px;" aria-label="Search for an icon">
+                    <div id="emf-icon-list" style="display:flex; flex-wrap:wrap;"></div>
+                </div>
+            `;
+            $('#emf-icon-picker').remove();
+            $folderItem.append(pickerHtml);
+
+            function renderIcons(filter = '') {
+                const $iconList = $('#emf-icon-list');
+                $iconList.empty();
+                const filteredIcons = iconOptions.filter(icon => icon.toLowerCase().includes(filter.toLowerCase()));
+                filteredIcons.forEach((icon, index) => {
+                    $iconList.append(`
+                        <span class="dashicons ${icon}" style="cursor:pointer; margin:5px; ${icon === currentIcon ? 'border:2px solid #0073aa;' : ''}" data-icon="${icon}" tabindex="0" aria-label="Select icon ${icon}"></span>
+                    `);
+                });
+                // Focus first icon for accessibility
+                $iconList.find('.dashicons').first().focus();
+            }
+            renderIcons();
+
+            let debounceTimeout;
+            $('#emf-icon-search').on('input', function(e) {
+                e.stopPropagation();
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(() => renderIcons($(this).val()), 300);
+            }).on('click', function(e) {
+                e.stopPropagation();
             });
-        }
-        renderIcons();
 
-        // Search functionality
-        $('#emf-icon-search').on('input', function(e) {
-            e.stopPropagation(); // Prevent bubbling to folder item
-            renderIcons($(this).val());
-        }).on('click', function(e) {
-            e.stopPropagation(); // Prevent click from triggering navigation
+            $('#emf-icon-list').on('click', '.dashicons', function(e) {
+                e.stopPropagation();
+                selectIcon($(this));
+            }).on('keydown', '.dashicons', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectIcon($(this));
+                } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    $(this).next('.dashicons').focus();
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    $(this).prev('.dashicons').focus();
+                }
+            });
+
+            function selectIcon($icon) {
+                const newIcon = $icon.data('icon');
+                $.post(emfm_data.ajax_url, {
+                    action: 'emfm_update_folder_icon',
+                    folder_id: folderId,
+                    icon: newIcon,
+                    nonce: emfm_data.nonce
+                }).done(response => {
+                    if (response.success) {
+                        $folderItem.find('.dashicons').first().removeClass().addClass('dashicons ' + newIcon);
+                        const folder = emfm_data.folders.find(f => f.term_id == folderId);
+                        if (folder) {
+                            folder.meta.emf_folder_icon = newIcon;
+                        }
+                        $('#emf-icon-picker').remove();
+                    } else {
+                        alert('Error: ' + (response.data || 'Unknown error'));
+                    }
+                }).fail(handleAjaxError);
+            }
         });
+    }
 
-        // Handle icon selection
-        $('#emf-icon-list').on('click', '.dashicons', function(e) {
-            e.stopPropagation(); // Prevent bubbling
-            const newIcon = $(this).data('icon');
+    // Handle media list table folder dropdown
+    function handleMediaListDropdown() {
+        $(document).on('change', '.emfm-folder-select', function() {
+            const mediaId = $(this).data('media-id');
+            const folderId = $(this).val();
             $.post(emfm_data.ajax_url, {
-                action: 'emfm_update_folder_icon',
+                action: 'emfm_assign_folder',
+                media_id: mediaId,
                 folder_id: folderId,
-                icon: newIcon,
                 nonce: emfm_data.nonce
             }).done(response => {
-                if (response.success) {
-                    $folderItem.find('.dashicons').first().removeClass().addClass('dashicons ' + newIcon);
-                    const folder = emfm_data.folders.find(f => f.term_id == folderId);
-                    if (folder) {
-                        folder.meta.emf_folder_icon = newIcon;
-                    }
-                    $('#emf-icon-picker').remove();
-                } else {
+                if (!response.success) {
                     alert('Error: ' + (response.data || 'Unknown error'));
                 }
-            }).fail(() => alert('AJAX failed'));
+            }).fail(handleAjaxError);
         });
-    });
+    }
 
     // Close menus and pickers when clicking outside
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('.emf-folder-menu-toggle, .emf-folder-menu, #emf-icon-picker').length) {
-            $('.emf-folder-menu').hide();
-            $('#emf-icon-picker').remove();
-        }
-    });
+    function handleOutsideClick() {
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.emf-folder-menu-toggle, .emf-folder-menu, #emf-icon-picker').length) {
+                $('.emf-folder-menu').hide();
+                $('#emf-icon-picker').remove();
+            }
+        });
+    }
 
-    // Fallback: Apply sort on DOM ready
-    $(document).ready(function() {
-        setTimeout(applySavedSort, 500);
-    });
+    // Initialize plugin
+    function init() {
+        if (!$.ui || !$.ui.draggable || !$.ui.droppable || !$.ui.sortable) {
+            console.error('jQuery UI dependencies missing');
+            return;
+        }
+        waitForElements();
+        handleFolderCreation();
+        handleFolderNavigation();
+        handleFolderSorting();
+        handleFolderMenuActions();
+        handleMediaListDropdown();
+        handleOutsideClick();
+        setTimeout(applySavedSort, 500); // Fallback sort
+    }
+
+    init();
 });
