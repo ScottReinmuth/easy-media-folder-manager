@@ -89,7 +89,7 @@ class EMFM_Plugin {
         add_media_page(
             esc_html__('Media Folders', 'easy-media-folder-manager'),
             esc_html__('Media Folders', 'easy-media-folder-manager'),
-            'upload_files',
+            'manage_categories',
             'emfm_folders',
             [$this, 'render_folders_page']
         );
@@ -99,6 +99,10 @@ class EMFM_Plugin {
      * Render folders management page.
      */
     public function render_folders_page() {
+        if (!current_user_can('manage_categories')) {
+            wp_die('Unauthorized access.');
+        }
+
         $core = new Easy_Media_Folder_Manager();
         $folders = $core->get_folders();
         ?>
@@ -106,11 +110,18 @@ class EMFM_Plugin {
             <h1><?php esc_html_e('Media Folders', 'easy-media-folder-manager'); ?></h1>
             <form method="post">
                 <?php wp_nonce_field('emfm_folder_action', 'emfm_nonce'); ?>
-                <input type="text" name="folder_name" placeholder="<?php esc_attr_e('New folder name', 'easy-media-folder-manager'); ?>" />
+                <input type="text" name="folder_name" placeholder="<?php esc_attr_e('New folder name', 'easy-media-folder-manager'); ?>" aria-label="<?php esc_attr_e('New folder name', 'easy-media-folder-manager'); ?>" />
+                <select name="parent_folder" aria-label="<?php esc_attr_e('Parent folder', 'easy-media-folder-manager'); ?>">
+                    <option value="0"><?php esc_html_e('No Parent', 'easy-media-folder-manager'); ?></option>
+                    <?php foreach ($folders as $folder) : ?>
+                        <option value="<?php echo esc_attr($folder->term_id); ?>"><?php echo esc_html($folder->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <input type="submit" name="action" value="<?php esc_attr_e('Create Folder', 'easy-media-folder-manager'); ?>" class="button button-primary" />
             </form>
             <h2><?php esc_html_e('Existing Folders', 'easy-media-folder-manager'); ?></h2>
-            <table class="wp-list-table widefat fixed striped">
+            <input type="text" id="emfm-folder-search" placeholder="<?php esc_attr_e('Search folders...', 'easy-media-folder-manager'); ?>" style="width:100%; margin-bottom:10px;" aria-label="<?php esc_attr_e('Search folders', 'easy-media-folder-manager'); ?>" />
+            <table class="wp-list-table widefat fixed striped" id="emfm-folder-table">
                 <thead>
                     <tr>
                         <th><?php esc_html_e('Folder Name', 'easy-media-folder-manager'); ?></th>
@@ -119,13 +130,13 @@ class EMFM_Plugin {
                 </thead>
                 <tbody>
                     <?php foreach ($folders as $folder) : ?>
-                        <tr>
+                        <tr data-folder-name="<?php echo esc_attr(strtolower($folder->name)); ?>">
                             <td><?php echo esc_html($folder->name); ?></td>
                             <td>
                                 <form method="post" style="display:inline;">
                                     <?php wp_nonce_field('emfm_folder_action', 'emfm_nonce'); ?>
                                     <input type="hidden" name="folder_id" value="<?php echo esc_attr($folder->term_id); ?>" />
-                                    <input type="text" name="new_folder_name" placeholder="<?php esc_attr_e('New name', 'easy-media-folder-manager'); ?>" />
+                                    <input type="text" name="new_folder_name" placeholder="<?php esc_attr_e('New name', 'easy-media-folder-manager'); ?>" aria-label="<?php esc_attr_e('New folder name', 'easy-media-folder-manager'); ?>" />
                                     <input type="submit" name="action" value="<?php esc_attr_e('Rename', 'easy-media-folder-manager'); ?>" class="button" />
                                 </form>
                                 <form method="post" style="display:inline;">
@@ -139,6 +150,17 @@ class EMFM_Plugin {
                 </tbody>
             </table>
         </div>
+        <script>
+            jQuery(document).ready(function($) {
+                $('#emfm-folder-search').on('input', function() {
+                    const search = $(this).val().toLowerCase();
+                    $('#emfm-folder-table tbody tr').each(function() {
+                        const folderName = $(this).data('folder-name');
+                        $(this).toggle(folderName.includes(search));
+                    });
+                });
+            });
+        </script>
         <?php
     }
 
@@ -178,20 +200,10 @@ class EMFM_Plugin {
 
         // Localize script data
         $core = new Easy_Media_Folder_Manager();
-        $folders = $core->get_folders();
-        foreach ($folders as &$folder) {
-            $order = get_term_meta($folder->term_id, 'emf_folder_order', true);
-            $icon = get_term_meta($folder->term_id, 'emf_folder_icon', true);
-            $folder->meta = [
-                'emf_folder_order' => $order !== '' ? (int)$order : null,
-                'emf_folder_icon' => $icon ?: 'dashicons-folder',
-            ];
-        }
-        unset($folder);
-
+        $folders = $core->get_sorted_folders('manual');
         wp_localize_script('emfm-admin', 'emfm_data', [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => $this->nonce_handler('emfm_action'),
+            'nonce' => $this->nonce_handler('emfm_folder_action'),
             'folders' => $folders,
         ]);
     }
@@ -242,60 +254,6 @@ class EMFM_Plugin {
     }
 
     /**
-     * Render folder sidebar HTML.
-     *
-     * @return string Sidebar HTML.
-     */
-    public function render_sidebar() {
-        $core = new Easy_Media_Folder_Manager();
-        $folders = $core->get_sorted_folders('manual');
-        ob_start();
-        ?>
-        <div id="emf-folder-sidebar">
-            <h2><?php esc_html_e('Folders', 'easy-media-folder-manager'); ?></h2>
-            <button id="emf-new-folder-btn" class="button"><?php esc_html_e('New Folder', 'easy-media-folder-manager'); ?></button>
-            <div id="emf-new-folder-form" style="display:none; margin-top:10px;">
-                <input type="text" id="emf-new-folder-name" placeholder="<?php esc_attr_e('Folder Name', 'easy-media-folder-manager'); ?>" style="width:100%; margin-bottom:5px;" />
-                <button id="emf-create-folder" class="button button-primary"><?php esc_html_e('Create', 'easy-media-folder-manager'); ?></button>
-                <button id="emf-cancel-folder" class="button"><?php esc_html_e('Cancel', 'easy-media-folder-manager'); ?></button>
-            </div>
-            <select id="emf-folder-sort" style="margin-top:10px; width:100%;">
-                <option value="name-asc"><?php esc_html_e('Name (A-Z)', 'easy-media-folder-manager'); ?></option>
-                <option value="name-desc"><?php esc_html_e('Name (Z-A)', 'easy-media-folder-manager'); ?></option>
-                <option value="date-asc"><?php esc_html_e('Date (Oldest First)', 'easy-media-folder-manager'); ?></option>
-                <option value="date-desc"><?php esc_html_e('Date (Newest First)', 'easy-media-folder-manager'); ?></option>
-                <option value="count-asc"><?php esc_html_e('Count (Low to High)', 'easy-media-folder-manager'); ?></option>
-                <option value="count-desc"><?php esc_html_e('Count (High to Low)', 'easy-media-folder-manager'); ?></option>
-                <option value="manual"><?php esc_html_e('Manual Order', 'easy-media-folder-manager'); ?></option>
-            </select>
-            <ul id="emf-folder-list" style="margin-top:10px;">
-                <li class="emf-folder-item" data-folder-id="0">
-                    <span class="dashicons dashicons-portfolio"></span>
-                    <span class="emf-folder-title"><?php esc_html_e('All Media', 'easy-media-folder-manager'); ?></span>
-                </li>
-                <?php if (empty($folders)) : ?>
-                    <li><?php esc_html_e('No folders found', 'easy-media-folder-manager'); ?></li>
-                <?php else : ?>
-                    <?php foreach ($folders as $folder) : ?>
-                        <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">
-                            <span class="dashicons <?php echo esc_attr($folder->meta['emf_folder_icon'] ?? 'dashicons-folder'); ?>"></span>
-                            <span class="emf-folder-title"><?php echo esc_html($folder->name); ?></span>
-                            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;"></span>
-                            <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
-                                <a href="#" class="emf-rename-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Rename</a><br>
-                                <a href="#" class="emf-delete-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Delete</a><br>
-                                <a href="#" class="emf-edit-icon" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Edit Icon</a>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </ul>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    /**
      * Inject sidebar into media library.
      */
     public function inject_sidebar() {
@@ -304,33 +262,31 @@ class EMFM_Plugin {
         }
         wp_add_inline_script(
             'emfm-admin',
-            sprintf(
-                'jQuery(document).ready(function($){$("#wpbody").prepend(%s);});',
-                json_encode($this->render_sidebar())
-            )
+            'jQuery(document).ready(function($){$("#wpbody").prepend(' . json_encode($this->render_sidebar()) . ');});'
         );
+    }
+
+    /**
+     * Render folder sidebar HTML.
+     *
+     * @return string Sidebar HTML.
+     */
+    public function render_sidebar() {
+        ob_start();
+        include plugin_dir_path(__FILE__) . 'includes/templates/sidebar.php';
+        return ob_get_clean();
     }
 
     /**
      * Get folders with metadata.
      *
-     * @return array List of folder terms with metadata.
+     * @return WP_Term[] List of folder terms with metadata.
      */
     public function get_folders() {
         $core = new Easy_Media_Folder_Manager();
-        $folders = $core->get_folders();
-        foreach ($folders as &$folder) {
-            $order = get_term_meta($folder->term_id, 'emf_folder_order', true);
-            $icon = get_term_meta($folder->term_id, 'emf_folder_icon', true);
-            $folder->meta = [
-                'emf_folder_order' => $order !== '' ? (int)$order : null,
-                'emf_folder_icon' => $icon ?: 'dashicons-folder',
-            ];
-        }
-        return $folders;
+        return $core->get_folders();
     }
 }
 
 // Initialize plugin
 EMFM_Plugin::get_instance();
-?>
