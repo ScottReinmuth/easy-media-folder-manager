@@ -212,20 +212,21 @@ jQuery(document).ready(function($) {
 
     // Handle folder creation
     function handleFolderCreation() {
-        $('#emf-new-folder-btn').on('click', function(e) {
+        $(document).on('click', '#emf-new-folder-btn', function(e) {
             e.preventDefault();
             $('#emf-new-folder-form').slideDown();
         });
 
-        $('#emf-cancel-folder').on('click', function(e) {
+        $(document).on('click', '#emf-cancel-folder', function(e) {
             e.preventDefault();
             $('#emf-new-folder-form').slideUp();
             $('#emf-new-folder-name').val('');
         });
 
-        $('#emf-create-folder').on('click', function(e) {
+        $(document).on('click', '#emf-create-folder', function(e) {
             e.preventDefault();
             const folderName = $('#emf-new-folder-name').val().trim();
+            const parentId = $('#emf-parent-folder').val();
             if (!folderName) {
                 alert('Please enter a folder name');
                 return;
@@ -233,6 +234,7 @@ jQuery(document).ready(function($) {
             $.post(emfm_data.ajax_url, {
                 action: 'emfm_create_folder',
                 folder_name: folderName,
+                parent_folder: parentId,
                 nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
@@ -253,7 +255,8 @@ jQuery(document).ready(function($) {
                     $newItem.droppable($('.emf-folder-item').droppable('option'));
                     $('#emf-new-folder-form').slideUp();
                     $('#emf-new-folder-name').val('');
-                    emfm_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' } });
+                    $('#emf-parent-folder').val('0');
+                    emfm_data.folders.push({ term_id: folder.id, name: folder.name, slug: folder.slug, meta: { emf_folder_order: null, emf_folder_icon: 'dashicons-folder' }, parent: parentId });
                     applySavedSort();
                 } else {
                     alert('Error: ' + (response.data || 'Unknown error'));
