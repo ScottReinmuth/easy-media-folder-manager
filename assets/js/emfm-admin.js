@@ -454,17 +454,19 @@ jQuery(document).ready(function($) {
 
     // Initialize plugin
     function init() {
-        if (!$.ui || !$.ui.draggable || !$.ui.droppable || !$.ui.sortable) {
-            console.error('jQuery UI dependencies missing');
-            return;
-        }
-        waitForElements();
         handleFolderCreation();
         handleFolderNavigation();
         handleFolderSorting();
         handleFolderMenuActions();
         handleMediaListDropdown();
         handleOutsideClick();
+
+        if ($.ui && $.ui.draggable && $.ui.droppable && $.ui.sortable) {
+            waitForElements();
+        } else {
+            console.warn('jQuery UI dependencies missing; drag-and-drop disabled');
+        }
+
         setTimeout(applySavedSort, 500); // Fallback sort
     }
 
