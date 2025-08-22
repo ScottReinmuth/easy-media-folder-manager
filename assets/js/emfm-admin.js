@@ -283,7 +283,7 @@ jQuery(document).ready(function($) {
                 const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
                 folderSlug = folder ? folder.slug : '';
             }
-            const newUrl = 'upload.php' + (folderSlug ? '?media_folder=' + encodeURIComponent(folderSlug) : '');
+            const newUrl = 'upload.php' + (folderSlug ? '?emfm_media_folder=' + encodeURIComponent(folderSlug) : '');
 
             $('#emf-folder-list .emf-folder-item').removeClass('emf-folder-active');
             $(this).addClass('emf-folder-active');

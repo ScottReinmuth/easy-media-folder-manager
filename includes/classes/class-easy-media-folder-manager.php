@@ -78,18 +78,21 @@ class Easy_Media_Folder_Manager {
         }
 
         $folder = '';
-        if (!empty($_GET['media_folder'])) {
-            $folder = sanitize_text_field(wp_unslash($_GET['media_folder']));
-        } elseif (!empty($_GET['emfm_media_folder'])) {
+        if (!empty($_GET['emfm_media_folder'])) {
             $folder = sanitize_text_field(wp_unslash($_GET['emfm_media_folder']));
+        } elseif (!empty($_GET['media_folder'])) {
+            $folder = sanitize_text_field(wp_unslash($_GET['media_folder']));
         }
 
         if ('' === $folder) {
             return;
         }
 
-        $field_type = is_numeric($folder) ? 'term_id' : 'slug';
-        $folder     = ('term_id' === $field_type) ? absint($folder) : $folder;
+        $field_type = 'slug';
+        if (ctype_digit((string) $folder) && get_term((int) $folder, 'emfm_media_folder')) {
+            $field_type = 'term_id';
+            $folder     = (int) $folder;
+        }
 
         $tax_query   = (array) $query->get('tax_query');
         $tax_query[] = [
