@@ -323,9 +323,9 @@ class Easy_Media_Folder_Manager {
                     case 'count-desc':
                         return ($b->count ?? 0) - ($a->count ?? 0);
                     case 'manual':
-                        $a_order = get_term_meta($a->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
-                        $b_order = get_term_meta($b->term_id, 'emf_folder_order', true) ?: PHP_INT_MAX;
-                        return $a_order - $b_order;
+                        $a_order = isset($a->meta['emf_folder_order']) ? (int) $a->meta['emf_folder_order'] : PHP_INT_MAX;
+                        $b_order = isset($b->meta['emf_folder_order']) ? (int) $b->meta['emf_folder_order'] : PHP_INT_MAX;
+                        return $a_order <=> $b_order;
                     default:
                         return 0;
                 }
