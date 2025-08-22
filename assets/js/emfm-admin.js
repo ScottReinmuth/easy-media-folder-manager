@@ -176,7 +176,33 @@ jQuery(document).ready(function($) {
             }).done(response => {
                 if (response.success) {
                     $folderList.html(response.data.html);
+                    // Reattach droppable to new folder elements.
+                    const $newFolders = $folderList.find('.emf-folder-item:not(.ui-droppable)');
+                    $newFolders.droppable({
+                        accept: '.attachment, tr, .media-item',
+                        hoverClass: 'emf-folder-hover',
+                        drop: function(event, ui) {
+                            const mediaId = ui.draggable.data('id') || ui.draggable.find('input[type="checkbox"]').val();
+                            if (!mediaId) return;
+
+                            const folderId = $(this).data('folder-id');
+                            $.post(emfm_data.ajax_url, {
+                                action: 'emfm_assign_folder',
+                                media_id: mediaId,
+                                folder_id: folderId,
+                                nonce: emfm_data.nonce
+                            }).done(res => {
+                                if (res.success) {
+                                    window.location.reload();
+                                } else {
+                                    alert('Error: ' + (res.data || 'Unknown error'));
+                                }
+                            }).fail(handleAjaxError);
+                        }
+                    });
+
                     if ($folderList.hasClass('ui-sortable')) {
+                        $folderList.sortable('refresh');
                         if (savedSort === 'manual') {
                             $folderList.sortable('enable');
                         } else {
