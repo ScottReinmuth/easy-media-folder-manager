@@ -3,7 +3,7 @@ Contributors: scottreinmuth
 Tags: media, folders, organization, file manager
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.2.4
+Stable tag: 1.2.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,6 +56,10 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 
 == Changelog ==
 
+= 1.2.5 =
+- Fixed folder filtering for AJAX and admin queries.
+- Fixed manual folder sort when the first item has order 0.
+
 = 1.2.4 =
 - Fixed folder content not displaying.
 - Fixed folder sorting via AJAX.
@@ -95,6 +99,9 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 - Initial release.
 
 == Upgrade Notice ==
+
+= 1.2.5 =
+Fixes folder filtering in the media library and improves manual sorting.
 
 = 1.2.4 =
 Resolves issues with folder content display and sorting via AJAX.
