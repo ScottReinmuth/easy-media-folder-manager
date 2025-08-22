@@ -36,7 +36,7 @@ $folders = $core->get_sorted_folders('manual');
         <option value="manual"><?php esc_html_e('Manual Order', 'easy-media-folder-manager'); ?></option>
     </select>
     <ul id="emf-folder-list" style="margin-top:10px;">
-        <li class="emf-folder-item" data-folder-id="0" role="button" aria-label="<?php esc_attr_e('View all media', 'easy-media-folder-manager'); ?>">
+        <li class="emf-folder-item" data-folder-id="0" data-folder-slug="" role="button" aria-label="<?php esc_attr_e('View all media', 'easy-media-folder-manager'); ?>">
             <span class="dashicons dashicons-portfolio"></span>
             <span class="emf-folder-title"><?php esc_html_e('All Media', 'easy-media-folder-manager'); ?></span>
         </li>
@@ -44,7 +44,7 @@ $folders = $core->get_sorted_folders('manual');
             <li><?php esc_html_e('No folders found', 'easy-media-folder-manager'); ?></li>
         <?php else : ?>
             <?php foreach ($folders as $folder) : ?>
-                <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>" role="button" aria-label="<?php esc_attr_e('View folder: ' . esc_html($folder->name), 'easy-media-folder-manager'); ?>">
+                <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>" data-folder-slug="<?php echo esc_attr($folder->slug); ?>" role="button" aria-label="<?php esc_attr_e('View folder: ' . esc_html($folder->name), 'easy-media-folder-manager'); ?>">
                     <span class="dashicons <?php echo esc_attr($folder->meta['emf_folder_icon'] ?? 'dashicons-folder'); ?>"></span>
                     <span class="emf-folder-title"><?php echo str_repeat('  ', $core->get_term_depth($folder)) . esc_html($folder->name); ?></span>
                     <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0" aria-label="<?php esc_attr_e('Folder actions', 'easy-media-folder-manager'); ?>"></span>

@@ -210,7 +210,7 @@ function emfm_sort_folders_callback() {
     ob_start();
     foreach ($folders as $folder) {
         ?>
-        <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">
+        <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>" data-folder-slug="<?php echo esc_attr($folder->slug); ?>">
             <span class="dashicons <?php echo esc_attr($folder->meta['emf_folder_icon'] ?? 'dashicons-folder'); ?>"></span>
             <span class="emf-folder-title"><?php echo esc_html($folder->name); ?></span>
             <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>

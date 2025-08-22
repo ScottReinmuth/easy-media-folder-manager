@@ -240,7 +240,7 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     const folder = response.data;
                     const $newItem = $(`
-                        <li class="emf-folder-item" data-folder-id="${folder.id}">
+                        <li class="emf-folder-item" data-folder-id="${folder.id}" data-folder-slug="${folder.slug}">
                             <span class="dashicons dashicons-folder"></span>
                             <span class="emf-folder-title">${folder.name}</span>
                             <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
@@ -277,9 +277,8 @@ jQuery(document).ready(function($) {
                 return;
             }
 
-            const folderId = $(this).data('folder-id');
-            const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
-            const newUrl = 'upload.php' + (folder ? '?media_folder=' + folder.slug : '');
+            const folderSlug = $(this).data('folder-slug');
+            const newUrl = 'upload.php' + (folderSlug ? '?emfm_media_folder=' + folderSlug : '');
 
             $('#emf-folder-list .emf-folder-item').removeClass('emf-folder-active');
             $(this).addClass('emf-folder-active');
@@ -335,6 +334,7 @@ jQuery(document).ready(function($) {
                 }).done(response => {
                     if (response.success) {
                         $folderItem.find('.emf-folder-title').text(newName);
+                        $folderItem.attr('data-folder-slug', response.data.slug);
                         const folder = emfm_data.folders.find(f => f.term_id == folderId);
                         if (folder) {
                             folder.name = newName;
