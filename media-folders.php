@@ -3,7 +3,7 @@
  * Plugin Name: Easy Media Folder Manager
  * Plugin URI: https://github.com/ScottReinmuth/easy-media-folder-manager
  * Description: Organize your WordPress media library into folders for easier management.
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: Scott Reinmuth
  * Author URI: https://github.com/ScottReinmuth
  * License: GPLv2 or later
