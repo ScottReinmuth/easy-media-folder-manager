@@ -75,21 +75,26 @@ class Easy_Media_Folder_Manager {
             return;
         }
 
-        $folder = $_GET['media_folder'] ?? $_GET['emfm_media_folder'] ?? '';
+        $folder = isset($_GET['media_folder']) ? sanitize_text_field(wp_unslash($_GET['media_folder'])) : '';
+        if ('' === $folder) {
+            $folder = isset($_GET['emfm_media_folder']) ? sanitize_text_field(wp_unslash($_GET['emfm_media_folder'])) : '';
+        }
         if ('' === $folder) {
             return;
         }
-        $folder     = sanitize_text_field($folder);
+
         $field_type = is_numeric($folder) ? 'term_id' : 'slug';
         $folder     = ('term_id' === $field_type) ? absint($folder) : $folder;
 
-        $query->set('tax_query', [
-            [
-                'taxonomy' => 'emfm_media_folder',
-                'field'    => $field_type,
-                'terms'    => [$folder],
-            ],
-        ]);
+        $tax_query   = (array) $query->get('tax_query');
+        $tax_query[] = [
+            'taxonomy' => 'emfm_media_folder',
+            'field'    => $field_type,
+            'terms'    => [$folder],
+        ];
+
+        $query->set('tax_query', $tax_query);
+        $query->set('post_type', 'attachment');
     }
 
     /**
