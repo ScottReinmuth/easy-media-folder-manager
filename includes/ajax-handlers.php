@@ -189,6 +189,13 @@ function emfm_save_folder_order_callback() {
         }
     }
 
+    // Clear cached folder data so sorting updates immediately.
+    delete_transient('emfm_folders');
+    $sort_keys = ['name-asc', 'name-desc', 'date-asc', 'date-desc', 'count-asc', 'count-desc', 'manual'];
+    foreach ($sort_keys as $key) {
+        delete_transient('emfm_sorted_folders_' . md5($key));
+    }
+
     wp_send_json_success(['message' => __('Folder order saved successfully', 'easy-media-folder-manager')]);
 }
 add_action('wp_ajax_emfm_save_folder_order', 'emfm_save_folder_order_callback');
