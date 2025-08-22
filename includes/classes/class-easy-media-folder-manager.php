@@ -67,10 +67,7 @@ class Easy_Media_Folder_Manager {
     /**
      * Filter media by folder in the media library.
      *
-     * The requested folder can be provided as either a slug or term ID via
-     * the `media_folder` or `emfm_media_folder` query vars. When present, the
-     * corresponding term is appended to the main query so that only attachments
-     * in the selected folder are displayed.
+     * Append selected folder to the main media query.
      *
      * @param WP_Query $query The query object.
      */
@@ -80,10 +77,13 @@ class Easy_Media_Folder_Manager {
             return;
         }
 
-        $folder = isset($_GET['media_folder']) ? sanitize_text_field(wp_unslash($_GET['media_folder'])) : '';
-        if ('' === $folder) {
-            $folder = isset($_GET['emfm_media_folder']) ? sanitize_text_field(wp_unslash($_GET['emfm_media_folder'])) : '';
+        $folder = '';
+        if (!empty($_GET['media_folder'])) {
+            $folder = sanitize_text_field(wp_unslash($_GET['media_folder']));
+        } elseif (!empty($_GET['emfm_media_folder'])) {
+            $folder = sanitize_text_field(wp_unslash($_GET['emfm_media_folder']));
         }
+
         if ('' === $folder) {
             return;
         }
@@ -99,7 +99,6 @@ class Easy_Media_Folder_Manager {
         ];
 
         $query->set('tax_query', $tax_query);
-        $query->set('post_type', 'attachment');
     }
 
     /**
