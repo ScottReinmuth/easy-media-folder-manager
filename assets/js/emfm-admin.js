@@ -269,13 +269,31 @@ jQuery(document).ready(function($) {
     function handleFolderNavigation() {
         $(document).on('click', '.emf-folder-item', function(e) {
             e.preventDefault();
-            if ($(e.target).hasClass('emf-folder-menu-toggle') || $(e.target).closest('.emf-folder-menu').length || $(e.target).closest('#emf-icon-picker').length) {
+            if (
+                $(e.target).hasClass('emf-folder-menu-toggle') ||
+                $(e.target).closest('.emf-folder-menu').length ||
+                $(e.target).closest('#emf-icon-picker').length
+            ) {
                 return;
             }
+
             const folderId = $(this).data('folder-id');
             const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
             const newUrl = 'upload.php' + (folder ? '?media_folder=' + folder.slug : '');
-            window.location.href = newUrl;
+
+            $('#emf-folder-list .emf-folder-item').removeClass('emf-folder-active');
+            $(this).addClass('emf-folder-active');
+
+            $('#wpbody-content').fadeTo(100, 0.3).load(newUrl + ' #wpbody-content > *', function(response, status) {
+                $('#wpbody-content').fadeTo(100, 1);
+                if (status === 'error') {
+                    alert('Failed to load folder contents.');
+                    return;
+                }
+                history.pushState({}, '', newUrl);
+                window.emfm.dragAndDropInitialized = false;
+                initializeDragAndDrop();
+            });
         });
     }
 
