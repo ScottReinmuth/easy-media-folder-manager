@@ -206,35 +206,47 @@ class Easy_Media_Folder_Manager {
      * Handle folder actions (form submissions).
      */
     public function handle_folder_actions() {
-        if (!isset($_POST['action']) || !in_array($_POST['action'], ['Create Folder', 'Rename', 'Delete'], true)) {
+        if (empty($_POST['action'])) {
             return;
         }
-        if (!current_user_can('manage_categories') || !wp_verify_nonce($_POST['emfm_nonce'], 'emfm_folder_action')) {
+
+        $action = sanitize_key($_POST['action']);
+        if (!in_array($action, ['create_folder', 'rename_folder', 'delete_folder'], true)) {
+            return;
+        }
+
+        if (!current_user_can('manage_categories') || !isset($_POST['emfm_nonce']) || !wp_verify_nonce($_POST['emfm_nonce'], 'emfm_folder_action')) {
             wp_die('Unauthorized access.');
         }
 
         $redirect_url = admin_url('upload.php?page=emfm_folders');
         $message = 'error';
 
-        if ($_POST['action'] === 'Create Folder') {
-            $parent_id = absint($_POST['parent_folder'] ?? 0);
-            $result = $this->create_folder($_POST['folder_name'] ?? '', $parent_id);
-            if (!is_wp_error($result)) {
-                $message = 'created';
-            }
-        } elseif ($_POST['action'] === 'Rename') {
-            $result = $this->rename_folder($_POST['folder_id'] ?? 0, $_POST['new_folder_name'] ?? '');
-            if (!is_wp_error($result)) {
-                $message = 'renamed';
-            }
-        } elseif ($_POST['action'] === 'Delete') {
-            $result = $this->delete_folder($_POST['folder_id'] ?? 0);
-            if (!is_wp_error($result)) {
-                $message = 'deleted';
-            }
+        switch ($action) {
+            case 'create_folder':
+                $parent_id = absint($_POST['parent_folder'] ?? 0);
+                $result = $this->create_folder($_POST['folder_name'] ?? '', $parent_id);
+                if (!is_wp_error($result)) {
+                    $message = 'created';
+                }
+                break;
+
+            case 'rename_folder':
+                $result = $this->rename_folder($_POST['folder_id'] ?? 0, $_POST['new_folder_name'] ?? '');
+                if (!is_wp_error($result)) {
+                    $message = 'renamed';
+                }
+                break;
+
+            case 'delete_folder':
+                $result = $this->delete_folder($_POST['folder_id'] ?? 0);
+                if (!is_wp_error($result)) {
+                    $message = 'deleted';
+                }
+                break;
         }
 
-        wp_redirect(add_query_arg('message', $message, $redirect_url));
+        wp_safe_redirect(add_query_arg('message', $message, $redirect_url));
         exit;
     }
 

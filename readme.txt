@@ -3,7 +3,7 @@ Contributors: scottreinmuth
 Tags: media, folders, organization, file manager
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,6 +56,10 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 
 == Changelog ==
 
+= 1.2.1 =
+- Fixed folder action buttons using translation-independent identifiers.
+- Added nonce existence checks and safe redirects for folder actions.
+
 = 1.2.0 =
 - Added support for hierarchical folder UI with parent folder selection.
 - Standardized nonce handling with consistent `emfm_folder_action` action.
@@ -80,6 +84,9 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 - Initial release.
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+Ensures folder actions work across translated WordPress installations and improves security checks.
 
 = 1.2.0 =
 This update improves performance, security, and accessibility. Backup your site before upgrading. Check for taxonomy conflicts with other media plugins (e.g., FileBird) and clear the `emfm_folders` transient if folders do not display correctly. Deactivate/reactivate the plugin to refresh cached data.
