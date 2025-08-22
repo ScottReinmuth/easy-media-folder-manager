@@ -65,7 +65,12 @@ class Easy_Media_Folder_Manager {
     }
 
     /**
-     * Filter media by folder in media library.
+     * Filter media by folder in the media library.
+     *
+     * The requested folder can be provided as either a slug or term ID via
+     * the `media_folder` or `emfm_media_folder` query vars. When present, the
+     * corresponding term is appended to the main query so that only attachments
+     * in the selected folder are displayed.
      *
      * @param WP_Query $query The query object.
      */
