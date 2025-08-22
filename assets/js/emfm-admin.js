@@ -277,13 +277,8 @@ jQuery(document).ready(function($) {
                 return;
             }
 
-            let folderSlug = $(this).data('folder-slug');
-            if (!folderSlug) {
-                const folderId = $(this).data('folder-id');
-                const folder = folderId === 0 ? null : emfm_data.folders.find(f => f.term_id == folderId);
-                folderSlug = folder ? folder.slug : '';
-            }
-            const newUrl = 'upload.php' + (folderSlug ? '?emfm_media_folder=' + encodeURIComponent(folderSlug) : '');
+            const folderId = $(this).data('folder-id');
+            const newUrl   = 'upload.php' + (folderId ? '?media_folder=' + folderId : '');
 
             $('#emf-folder-list .emf-folder-item').removeClass('emf-folder-active');
             $(this).addClass('emf-folder-active');
