@@ -3,7 +3,7 @@
  * Plugin Name: Easy Media Folder Manager
  * Plugin URI: https://github.com/ScottReinmuth/easy-media-folder-manager
  * Description: Organize your WordPress media library into folders for easier management.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Scott Reinmuth
  * Author URI: https://github.com/ScottReinmuth
  * License: GPLv2 or later
@@ -117,7 +117,7 @@ class EMFM_Plugin {
                         <option value="<?php echo esc_attr($folder->term_id); ?>"><?php echo esc_html($folder->name); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <input type="submit" name="action" value="<?php esc_attr_e('Create Folder', 'easy-media-folder-manager'); ?>" class="button button-primary" />
+                <button type="submit" name="action" value="create_folder" class="button button-primary"><?php esc_html_e('Create Folder', 'easy-media-folder-manager'); ?></button>
             </form>
             <h2><?php esc_html_e('Existing Folders', 'easy-media-folder-manager'); ?></h2>
             <input type="text" id="emfm-folder-search" placeholder="<?php esc_attr_e('Search folders...', 'easy-media-folder-manager'); ?>" style="width:100%; margin-bottom:10px;" aria-label="<?php esc_attr_e('Search folders', 'easy-media-folder-manager'); ?>" />
@@ -137,12 +137,12 @@ class EMFM_Plugin {
                                     <?php wp_nonce_field('emfm_folder_action', 'emfm_nonce'); ?>
                                     <input type="hidden" name="folder_id" value="<?php echo esc_attr($folder->term_id); ?>" />
                                     <input type="text" name="new_folder_name" placeholder="<?php esc_attr_e('New name', 'easy-media-folder-manager'); ?>" aria-label="<?php esc_attr_e('New folder name', 'easy-media-folder-manager'); ?>" />
-                                    <input type="submit" name="action" value="<?php esc_attr_e('Rename', 'easy-media-folder-manager'); ?>" class="button" />
+                                    <button type="submit" name="action" value="rename_folder" class="button"><?php esc_html_e('Rename', 'easy-media-folder-manager'); ?></button>
                                 </form>
                                 <form method="post" style="display:inline;">
                                     <?php wp_nonce_field('emfm_folder_action', 'emfm_nonce'); ?>
                                     <input type="hidden" name="folder_id" value="<?php echo esc_attr($folder->term_id); ?>" />
-                                    <input type="submit" name="action" value="<?php esc_attr_e('Delete', 'easy-media-folder-manager'); ?>" class="button" onclick="return confirm('<?php esc_attr_e('Are you sure?', 'easy-media-folder-manager'); ?>');" />
+                                    <button type="submit" name="action" value="delete_folder" class="button" onclick="return confirm('<?php echo esc_js(__('Are you sure?', 'easy-media-folder-manager')); ?>');"><?php esc_html_e('Delete', 'easy-media-folder-manager'); ?></button>
                                 </form>
                             </td>
                         </tr>
