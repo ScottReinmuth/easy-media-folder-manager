@@ -63,7 +63,8 @@ function emfm_create_folder_callback() {
     }
 
     $core = new Easy_Media_Folder_Manager();
-    $result = $core->create_folder($_POST['folder_name'] ?? '');
+    $parent_id = absint($_POST['parent_folder'] ?? 0);
+    $result = $core->create_folder($_POST['folder_name'] ?? '', $parent_id);
     if (!is_wp_error($result)) {
         wp_send_json_success([
             'id' => $result->term_id,
