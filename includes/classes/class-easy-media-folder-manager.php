@@ -397,10 +397,16 @@ class Easy_Media_Folder_Manager {
     /**
      * Get term depth for indentation.
      *
+     * This method is used by other classes, such as the custom media list
+     * table, to correctly indent folder names based on their hierarchy.  The
+     * previous implementation declared this method as `private`, which caused a
+     * fatal error when external classes attempted to call it.  Changing the
+     * visibility to `public` allows those classes to reuse the logic safely.
+     *
      * @param WP_Term $term Term object.
      * @return int Depth level.
      */
-    private function get_term_depth($term) {
+    public function get_term_depth($term) {
         $depth = 0;
         while ($term->parent) {
             $depth++;
