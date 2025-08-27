@@ -3,7 +3,7 @@
  * Plugin Name: Easy Media Folder Manager
  * Plugin URI: https://github.com/ScottReinmuth/easy-media-folder-manager
  * Description: Organize your WordPress media library into folders for easier management.
- * Version: 1.2.5
+ * Version: 1.2.6
  * Author: Scott Reinmuth
  * Author URI: https://github.com/ScottReinmuth
  * License: GPLv2 or later
@@ -67,6 +67,7 @@ class EMFM_Plugin {
         add_action('admin_notices', [$this, 'admin_notices']);
         add_action('admin_footer', [$this, 'inject_sidebar']);
         add_action('init', [$this, 'load_textdomain']);
+        add_filter('media_view_settings', [$this, 'add_folder_to_media_settings']);
 
         // Initialize core and media list table
         $core = new Easy_Media_Folder_Manager();
@@ -285,6 +286,30 @@ class EMFM_Plugin {
     public function get_folders() {
         $core = new Easy_Media_Folder_Manager();
         return $core->get_folders();
+    }
+
+    /**
+     * Add folder to media settings for filtering.
+     *
+     * @param array $settings Media view settings.
+     * @return array Modified settings.
+     */
+    public function add_folder_to_media_settings($settings) {
+        if (isset($_GET['media_folder'])) {
+            $folder = sanitize_text_field($_GET['media_folder']);
+            $field = is_numeric($folder) ? 'term_id' : 'slug';
+            $folder = 'term_id' === $field ? absint($folder) : $folder;
+            if ($folder) {
+                $settings['defaultProps']['tax_query'] = [
+                    [
+                        'taxonomy' => 'emfm_media_folder',
+                        'field' => $field,
+                        'terms' => $folder,
+                    ]
+                ];
+            }
+        }
+        return $settings;
     }
 }
 

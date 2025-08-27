@@ -309,16 +309,7 @@ jQuery(document).ready(function($) {
             $('#emf-folder-list .emf-folder-item').removeClass('emf-folder-active');
             $(this).addClass('emf-folder-active');
 
-            $('#wpbody-content').fadeTo(100, 0.3).load(newUrl + ' #wpbody-content > *', function(response, status) {
-                $('#wpbody-content').fadeTo(100, 1);
-                if (status === 'error') {
-                    alert('Failed to load folder contents.');
-                    return;
-                }
-                history.pushState({}, '', newUrl);
-                window.emfm.dragAndDropInitialized = false;
-                initializeDragAndDrop();
-            });
+            window.location.href = newUrl;
         });
     }
 
@@ -514,6 +505,11 @@ jQuery(document).ready(function($) {
         }
 
         setTimeout(applySavedSort, 500); // Fallback sort
+
+        // Set active folder based on URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentFolder = urlParams.get('media_folder') || '0';
+        $('.emf-folder-item[data-folder-id="' + currentFolder + '"]').addClass('emf-folder-active');
     }
 
     init();
