@@ -73,8 +73,8 @@ class Easy_Media_Folder_Manager {
         global $pagenow;
 
         // Only handle admin requests for the media library or attachment queries.
-        $is_ajax      = defined('DOING_AJAX') && DOING_AJAX && ('query-attachments' === ($_REQUEST['action'] ?? ''));
-        $folder_param = $_REQUEST['media_folder'] ?? '';
+        $is_ajax      = defined('DOING_AJAX') && DOING_AJAX && ('query-attachments' === ($_POST['action'] ?? ''));
+        $folder_param = $_GET['media_folder'] ?? $_POST['media_folder'] ?? '';
         if (!is_admin() || ( 'upload.php' !== $pagenow && ! $is_ajax ) || empty($folder_param)) {
             return;
         }
@@ -433,7 +433,7 @@ class Easy_Media_Folder_Manager {
      * @return array Modified post data.
      */
     public function save_folder_field($post, $attachment) {
-        if (isset($attachment['media_folder']) && $attachment['media_folder'][0] !== '') {
+        if (!empty($attachment['media_folder']) && $attachment['media_folder'][0] !== '') {
             $term_id = absint($attachment['media_folder'][0]);
             wp_set_object_terms($post['ID'], $term_id, 'emfm_media_folder', false);
         } else {

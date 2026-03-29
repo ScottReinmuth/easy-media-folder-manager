@@ -30,6 +30,13 @@ class EMFM_Plugin {
     private static $instance = null;
 
     /**
+     * Core plugin class instance.
+     *
+     * @var Easy_Media_Folder_Manager
+     */
+    private $core;
+
+    /**
      * Get singleton instance.
      *
      * @return EMFM_Plugin
@@ -70,8 +77,8 @@ class EMFM_Plugin {
         add_filter('media_view_settings', [$this, 'add_folder_to_media_settings']);
 
         // Initialize core and media list table
-        $core = new Easy_Media_Folder_Manager();
-        $core->init();
+        $this->core = new Easy_Media_Folder_Manager();
+        $this->core->init();
         $media_list = new EMFM_Media_List_Table();
         $media_list->init();
     }
@@ -104,8 +111,7 @@ class EMFM_Plugin {
             wp_die('Unauthorized access.');
         }
 
-        $core = new Easy_Media_Folder_Manager();
-        $folders = $core->get_folders();
+        $folders = $this->core->get_folders();
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Media Folders', 'easy-media-folder-manager'); ?></h1>
@@ -182,12 +188,15 @@ class EMFM_Plugin {
         wp_enqueue_script('jquery-ui-droppable');
         wp_enqueue_script('jquery-ui-sortable');
 
+        $js_file  = plugin_dir_path(__FILE__) . 'assets/js/emfm-admin.js';
+        $css_file = plugin_dir_path(__FILE__) . 'assets/css/emfm-admin.css';
+
         // Enqueue plugin scripts
         wp_enqueue_script(
             'emfm-admin',
             plugins_url('assets/js/emfm-admin.js', __FILE__),
             ['jquery', 'jquery-ui-core', 'jquery-ui-draggable', 'jquery-ui-droppable', 'jquery-ui-sortable'],
-            filemtime(plugin_dir_path(__FILE__) . 'assets/js/emfm-admin.js'),
+            file_exists($js_file) ? filemtime($js_file) : false,
             true
         );
 
@@ -196,12 +205,11 @@ class EMFM_Plugin {
             'emfm-admin',
             plugins_url('assets/css/emfm-admin.css', __FILE__),
             [],
-            filemtime(plugin_dir_path(__FILE__) . 'assets/css/emfm-admin.css')
+            file_exists($css_file) ? filemtime($css_file) : false
         );
 
         // Localize script data
-        $core = new Easy_Media_Folder_Manager();
-        $folders = $core->get_sorted_folders('manual');
+        $folders = $this->core->get_sorted_folders('manual');
         wp_localize_script('emfm-admin', 'emfm_data', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => $this->nonce_handler('emfm_folder_action'),
@@ -284,8 +292,7 @@ class EMFM_Plugin {
      * @return WP_Term[] List of folder terms with metadata.
      */
     public function get_folders() {
-        $core = new Easy_Media_Folder_Manager();
-        return $core->get_folders();
+        return $this->core->get_folders();
     }
 
     /**
