@@ -281,6 +281,7 @@ class EMFM_Plugin {
      * @return string Sidebar HTML.
      */
     public function render_sidebar() {
+        $core = $this->core;
         ob_start();
         include plugin_dir_path(__FILE__) . 'includes/templates/sidebar.php';
         return ob_get_clean();

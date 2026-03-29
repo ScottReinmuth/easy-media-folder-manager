@@ -243,6 +243,18 @@ jQuery(document).ready(function($) {
         observer.observe(targetNode, { childList: true, subtree: true });
     }
 
+    // Handle mobile sidebar collapse toggle
+    function handleSidebarToggle() {
+        $(document).on('click', '#emf-sidebar-toggle', function(e) {
+            e.preventDefault();
+            const $collapsible = $('#emf-sidebar-collapsible');
+            const isExpanded = $(this).attr('aria-expanded') === 'true';
+            $collapsible.slideToggle(200);
+            $(this).attr('aria-expanded', String(!isExpanded));
+            $(this).html(isExpanded ? '&#9660;' : '&#9650;');
+        });
+    }
+
     // Handle folder creation
     function handleFolderCreation() {
         $(document).on('click', '#emf-new-folder-btn', function(e) {
@@ -277,7 +289,7 @@ jQuery(document).ready(function($) {
                         <li class="emf-folder-item" data-folder-id="${safeFolderId}">
                             <span class="dashicons dashicons-folder"></span>
                             <span class="emf-folder-title"></span>
-                            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
+                            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" tabindex="0"></span>
                             <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
                                 <a href="#" class="emf-rename-folder" data-folder-id="${safeFolderId}">Rename</a><br>
                                 <a href="#" class="emf-delete-folder" data-folder-id="${safeFolderId}">Delete</a><br>
@@ -501,6 +513,7 @@ jQuery(document).ready(function($) {
 
     // Initialize plugin
     function init() {
+        handleSidebarToggle();
         handleFolderCreation();
         handleFolderNavigation();
         handleFolderSorting();
