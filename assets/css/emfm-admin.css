@@ -31,6 +31,33 @@
     margin-top: 0.625rem;
 }
 
+/* Sidebar header: title + collapse toggle side by side */
+#emf-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+#emf-sidebar-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+/* Collapse toggle — hidden on desktop, shown on mobile */
+#emf-sidebar-toggle {
+    display: none;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 0.1875rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
 /* Main content area */
 #wpbody-content {
     flex: 1 1 auto;
@@ -46,8 +73,21 @@
 
 #emf-folder-list {
     list-style: none;
-    margin: 0;
+    margin: 0.625rem 0 0;
     padding: 0;
+}
+
+/* Folder sort select */
+#emf-folder-sort {
+    width: 100%;
+    margin-top: 0.625rem;
+}
+
+/* Parent folder select inside new-folder form */
+#emf-parent-folder {
+    width: 100%;
+    margin-bottom: 0.3125rem;
+    box-sizing: border-box;
 }
 
 .emf-folder-item {
@@ -55,6 +95,9 @@
     cursor: pointer;
     transition: background 0.3s;
     position: relative; /* For absolute positioning of menu */
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem; /* 44px minimum touch target */
 }
 
 .emf-folder-item:hover,
@@ -68,6 +111,10 @@
     margin-left: 0.3125rem; /* 5px */
     font-size: 0.875rem; /* 14px */
     vertical-align: middle;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .attachment.ui-draggable-dragging,
@@ -117,6 +164,7 @@ tr.ui-draggable-dragging {
     #wpbody {
         flex-direction: column;
     }
+
     #emf-folder-sidebar {
         width: 100%;
         flex: 0 0 auto;
@@ -124,11 +172,43 @@ tr.ui-draggable-dragging {
         border-right: none;
         border-bottom: 1px solid var(--border-color);
     }
+
+    /* Show collapse toggle on mobile */
+    #emf-sidebar-toggle {
+        display: inline-block;
+    }
+
     #wpbody-content {
         width: 100%;
     }
+
     #wpbody-content .wrap {
         margin: 0 0.625rem; /* 10px */
+    }
+
+    /* Icon picker: fixed + centered so it never overflows the viewport */
+    #emf-icon-picker {
+        position: fixed !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        max-width: 90vw;
+        width: 90vw;
+        max-height: 60vh;
+    }
+
+    /* Ensure folder action menus don't overflow on narrow screens */
+    .emf-folder-menu {
+        right: auto;
+        left: 0;
+    }
+
+    /* Full-width buttons in the new-folder form */
+    #emf-new-folder-form .button {
+        width: 100%;
+        margin-top: 0.3125rem;
+        text-align: center;
+        box-sizing: border-box;
     }
 }
 
@@ -140,6 +220,8 @@ tr.ui-draggable-dragging {
 }
 
 .emf-folder-menu-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
     line-height: 1.25rem; /* 20px */
     cursor: pointer;
 }
@@ -157,6 +239,8 @@ tr.ui-draggable-dragging {
     display: block;
     text-decoration: none;
     color: var(--primary-color);
+    padding: 0.25rem 0;        /* touch-friendly tap area */
+    white-space: nowrap;
 }
 
 .emf-folder-menu a:hover {
@@ -201,4 +285,5 @@ tr.ui-draggable-dragging {
 /* Specific dashicons for folder items */
 .emf-folder-item .dashicons {
     vertical-align: middle;
+    flex-shrink: 0;
 }
