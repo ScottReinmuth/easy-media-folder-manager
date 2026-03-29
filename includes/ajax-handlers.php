@@ -15,7 +15,9 @@ if (!defined('ABSPATH')) {
  * @param string $message Error message.
  */
 function emfm_send_error($message) {
-    error_log('EMFM Error: ' . $message);
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('EMFM Error: ' . $message);
+    }
     wp_send_json_error(['message' => $message]);
 }
 
@@ -37,7 +39,11 @@ function emfm_assign_folder_callback() {
         return;
     }
 
-    $core = new Easy_Media_Folder_Manager();
+    if (!current_user_can('edit_post', $media_id)) {
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        return;
+    }
+
     $result = wp_set_object_terms($media_id, $folder_id ? $folder_id : [], 'emfm_media_folder', false);
     if (!is_wp_error($result)) {
         wp_send_json_success(['message' => __('Media assigned successfully', 'easy-media-folder-manager')]);
@@ -210,6 +216,11 @@ function emfm_sort_folders_callback() {
         return;
     }
 
+    if (!current_user_can('upload_files')) {
+        emfm_send_error(__('Insufficient permissions', 'easy-media-folder-manager'));
+        return;
+    }
+
     $sort_by = sanitize_text_field($_POST['sort_by'] ?? 'name-asc');
     $core = new Easy_Media_Folder_Manager();
     $folders = $core->get_sorted_folders($sort_by);
@@ -217,14 +228,14 @@ function emfm_sort_folders_callback() {
     ob_start();
     foreach ($folders as $folder) {
         ?>
-        <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">
+        <li class="emf-folder-item" data-folder-id="<?php echo esc_attr($folder->term_id); ?>" role="button" aria-label="<?php echo esc_attr(sprintf(__('View folder: %s', 'easy-media-folder-manager'), $folder->name)); ?>">
             <span class="dashicons <?php echo esc_attr($folder->meta['emf_folder_icon'] ?? 'dashicons-folder'); ?>"></span>
             <span class="emf-folder-title"><?php echo esc_html($folder->name); ?></span>
-            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
-            <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
-                <a href="#" class="emf-rename-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Rename</a><br>
-                <a href="#" class="emf-delete-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Delete</a><br>
-                <a href="#" class="emf-edit-icon" data-folder-id="<?php echo esc_attr($folder->term_id); ?>">Edit Icon</a>
+            <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" tabindex="0" aria-label="<?php esc_attr_e('Folder actions', 'easy-media-folder-manager'); ?>"></span>
+            <div class="emf-folder-menu" style="display:none;">
+                <a href="#" class="emf-rename-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>"><?php esc_html_e('Rename', 'easy-media-folder-manager'); ?></a><br>
+                <a href="#" class="emf-delete-folder" data-folder-id="<?php echo esc_attr($folder->term_id); ?>"><?php esc_html_e('Delete', 'easy-media-folder-manager'); ?></a><br>
+                <a href="#" class="emf-edit-icon" data-folder-id="<?php echo esc_attr($folder->term_id); ?>"><?php esc_html_e('Edit Icon', 'easy-media-folder-manager'); ?></a>
             </div>
         </li>
         <?php

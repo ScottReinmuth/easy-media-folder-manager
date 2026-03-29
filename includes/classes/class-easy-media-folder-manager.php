@@ -135,7 +135,7 @@ class Easy_Media_Folder_Manager {
         $folder_id = absint($folder_id);
         $new_name = sanitize_text_field($new_name);
         if (!$folder_id || empty($new_name)) {
-            return new WP_Error('invalid_input', __('Invalid folder ID or name: ' . $folder_id . ', ' . $new_name, 'easy-media-folder-manager'));
+            return new WP_Error('invalid_input', __('Invalid folder ID or name.', 'easy-media-folder-manager'));
         }
 
         $result = wp_update_term($folder_id, 'emfm_media_folder', ['name' => $new_name, 'slug' => sanitize_title($new_name)]);
@@ -166,7 +166,7 @@ class Easy_Media_Folder_Manager {
 
         $folder_id = absint($folder_id);
         if (!$folder_id) {
-            return new WP_Error('invalid_id', __('Invalid folder ID: ' . $folder_id, 'easy-media-folder-manager'));
+            return new WP_Error('invalid_id', __('Invalid folder ID.', 'easy-media-folder-manager'));
         }
 
         $media = get_objects_in_term($folder_id, 'emfm_media_folder');
@@ -203,10 +203,10 @@ class Easy_Media_Folder_Manager {
         $folder_id = absint($folder_id);
         $icon = sanitize_text_field($icon);
         if (!$folder_id || !$icon) {
-            return new WP_Error('invalid_input', __('Invalid folder ID or icon: ' . $folder_id . ', ' . $icon, 'easy-media-folder-manager'));
+            return new WP_Error('invalid_input', __('Invalid folder ID or icon.', 'easy-media-folder-manager'));
         }
         if (strpos($icon, 'dashicons-') !== 0) {
-            return new WP_Error('invalid_icon', __('Invalid icon class: ' . $icon, 'easy-media-folder-manager'));
+            return new WP_Error('invalid_icon', __('Invalid icon class.', 'easy-media-folder-manager'));
         }
         update_term_meta($folder_id, 'emf_folder_icon', $icon);
         return true;
@@ -354,6 +354,7 @@ class Easy_Media_Folder_Manager {
         $plugin = EMFM_Plugin::get_instance();
         if (!$plugin->nonce_handler('emfm_folder_action', $_POST['nonce'] ?? '')) {
             emfm_send_error(__('Invalid nonce', 'easy-media-folder-manager'));
+            return;
         }
 
         $media_id = absint($_POST['media_id'] ?? 0);
@@ -361,6 +362,7 @@ class Easy_Media_Folder_Manager {
 
         if (!current_user_can('edit_post', $media_id)) {
             emfm_send_error(__('Unauthorized access.', 'easy-media-folder-manager'));
+            return;
         }
 
         if ($media_id) {
