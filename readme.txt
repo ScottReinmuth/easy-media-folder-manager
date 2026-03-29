@@ -3,7 +3,7 @@ Contributors: scottreinmuth
 Tags: media, folders, organization, file manager
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.2.5
+Stable tag: 1.2.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,6 +56,20 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 
 == Changelog ==
 
+= 1.2.7 =
+- Fixed folder filtering in grid view using ajax_query_attachments_args; previously backbone.js bypassed pre_get_posts entirely.
+- Fixed drag-and-drop in grid view with a persistent MutationObserver so backbone.js-rendered items are always draggable.
+- Removed duplicate Media menu entries caused by show_ui and show_admin_column on the taxonomy registration.
+- Fixed XSS: folder name now set via .text() instead of HTML template literal on creation.
+- Fixed null-check crash when accessing folder icon meta in the icon picker.
+- Security: added edit_post capability check to media assignment AJAX handler.
+- Security: added upload_files capability check to folder sort AJAX handler.
+- Security: gated error_log() behind WP_DEBUG to prevent production log leakage.
+- Replaced $_REQUEST with explicit $_POST/$_GET superglobals.
+- Wrapped filemtime() calls with file_exists() to prevent PHP warnings on missing assets.
+- Full mobile responsiveness: collapsible sidebar toggle, 44px touch targets, flex folder layout, viewport-safe icon picker.
+- Eliminated repeated Easy_Media_Folder_Manager instantiation via shared $core property on plugin singleton.
+
 = 1.2.5 =
 - Fixed folder filtering for AJAX and admin queries.
 - Fixed manual folder sort when the first item has order 0.
@@ -99,6 +113,9 @@ Clear the `emfm_folders` transient in the WordPress database (using a plugin lik
 - Initial release.
 
 == Upgrade Notice ==
+
+= 1.2.7 =
+Fixes grid view filtering and drag-and-drop, removes duplicate Media menu entries, hardens security, and adds full mobile responsiveness.
 
 = 1.2.5 =
 Fixes folder filtering in the media library and improves manual sorting.
