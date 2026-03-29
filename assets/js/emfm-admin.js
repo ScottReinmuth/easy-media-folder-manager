@@ -8,6 +8,11 @@ jQuery(document).ready(function($) {
         return;
     }
 
+    // Helper to safely escape HTML for use in template literals
+    function escapeHtml(str) {
+        return $('<div>').text(String(str)).html();
+    }
+
     // Full Dashicons list (compatible with WordPress 6.5)
     const iconOptions = [
         'dashicons-menu', 'dashicons-admin-site', 'dashicons-dashboard', 'dashicons-admin-media', 'dashicons-admin-links',
@@ -175,7 +180,9 @@ jQuery(document).ready(function($) {
                 nonce: emfm_data.nonce
             }).done(response => {
                 if (response.success) {
-                    $folderList.html(response.data.html);
+                    if (response.data && typeof response.data.html !== 'undefined') {
+                        $folderList.html(response.data.html);
+                    }
                     // Reattach droppable to new folder elements.
                     const $newFolders = $folderList.find('.emf-folder-item:not(.ui-droppable)');
                     $newFolders.droppable({
@@ -265,18 +272,20 @@ jQuery(document).ready(function($) {
             }).done(response => {
                 if (response.success) {
                     const folder = response.data;
+                    const safeFolderId = parseInt(folder.id, 10);
                     const $newItem = $(`
-                        <li class="emf-folder-item" data-folder-id="${folder.id}">
+                        <li class="emf-folder-item" data-folder-id="${safeFolderId}">
                             <span class="dashicons dashicons-folder"></span>
-                            <span class="emf-folder-title">${folder.name}</span>
+                            <span class="emf-folder-title"></span>
                             <span class="emf-folder-menu-toggle dashicons dashicons-ellipsis" style="float:right; cursor:pointer;" tabindex="0"></span>
                             <div class="emf-folder-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:5px;">
-                                <a href="#" class="emf-rename-folder" data-folder-id="${folder.id}">Rename</a><br>
-                                <a href="#" class="emf-delete-folder" data-folder-id="${folder.id}">Delete</a><br>
-                                <a href="#" class="emf-edit-icon" data-folder-id="${folder.id}">Edit Icon</a>
+                                <a href="#" class="emf-rename-folder" data-folder-id="${safeFolderId}">Rename</a><br>
+                                <a href="#" class="emf-delete-folder" data-folder-id="${safeFolderId}">Delete</a><br>
+                                <a href="#" class="emf-edit-icon" data-folder-id="${safeFolderId}">Edit Icon</a>
                             </div>
                         </li>
                     `);
+                    $newItem.find('.emf-folder-title').text(folder.name);
                     $folderList.append($newItem);
                     $newItem.droppable($('.emf-folder-item').droppable('option'));
                     $('#emf-new-folder-form').slideUp();
@@ -388,7 +397,8 @@ jQuery(document).ready(function($) {
             e.preventDefault();
             const folderId = $(this).data('folder-id');
             const $folderItem = $(this).closest('.emf-folder-item');
-            const currentIcon = emfm_data.folders.find(f => f.term_id == folderId).meta.emf_folder_icon;
+            const folderData = emfm_data.folders.find(f => f.term_id == folderId);
+            const currentIcon = folderData && folderData.meta ? folderData.meta.emf_folder_icon : 'dashicons-folder';
 
             let pickerHtml = `
                 <div id="emf-icon-picker" style="position:absolute; background:#fff; border:1px solid #ccc; padding:10px; z-index:1001; width:250px; max-height:300px; overflow-y:auto;">
