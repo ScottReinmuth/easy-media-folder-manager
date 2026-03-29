@@ -236,11 +236,44 @@ jQuery(document).ready(function($) {
             const mediaLoaded = $('.attachments .attachment').length || $('.wp-list-table tbody tr').length;
             if (sidebarLoaded && mediaLoaded) {
                 initializeDragAndDrop();
+                // Keep watching .attachments for items backbone.js adds later
+                // (infinite scroll, filtering re-renders, etc.)
+                watchForNewGridAttachments();
                 obs.disconnect();
             }
         });
 
         observer.observe(targetNode, { childList: true, subtree: true });
+    }
+
+    // Persistent observer: make newly rendered grid items draggable.
+    // Backbone.js replaces .attachment nodes on every query change, so the
+    // one-time initializeDragAndDrop() is not enough for the grid view.
+    function watchForNewGridAttachments() {
+        const attachmentsEl = document.querySelector('.attachments');
+        if (!attachmentsEl) return;
+
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (
+                        node.nodeType === Node.ELEMENT_NODE &&
+                        $(node).hasClass('attachment') &&
+                        !$(node).hasClass('ui-draggable')
+                    ) {
+                        $(node).draggable({
+                            revert: 'invalid',
+                            helper: 'clone',
+                            start: function() { $(this).css('opacity', '0.5'); },
+                            stop: function()  { $(this).css('opacity', '1'); }
+                        });
+                    }
+                });
+            });
+        });
+
+        // childList only — .attachment items are direct children of .attachments
+        observer.observe(attachmentsEl, { childList: true });
     }
 
     // Handle mobile sidebar collapse toggle

@@ -60,8 +60,11 @@ class Easy_Media_Folder_Manager {
 
         register_taxonomy('emfm_media_folder', ['attachment'], $args);
 
-        // Filter media by folder
+        // Filter media by folder (list view — pre_get_posts path)
         add_action('pre_get_posts', [$this, 'filter_media_by_folder']);
+
+        // Filter media by folder (grid view — query-attachments AJAX path)
+        add_filter('ajax_query_attachments_args', [$this, 'ajax_filter_attachments_by_folder']);
     }
 
     /**
@@ -90,6 +93,38 @@ class Easy_Media_Folder_Manager {
             'terms'    => $folder,
         ];
         $query->set('tax_query', $tax_query);
+    }
+
+    /**
+     * Filter grid view (query-attachments AJAX) by folder.
+     *
+     * The backbone.js media library sends query params as query[key]=value,
+     * which bypasses pre_get_posts. This filter intercepts those args directly.
+     *
+     * @param array $query WP_Query args from the AJAX request.
+     * @return array Modified args.
+     */
+    public function ajax_filter_attachments_by_folder($query) {
+        $folder_param = isset($query['media_folder']) ? sanitize_text_field($query['media_folder']) : '';
+        if (empty($folder_param)) {
+            return $query;
+        }
+
+        $field_type = is_numeric($folder_param) ? 'term_id' : 'slug';
+        $folder     = 'term_id' === $field_type ? absint($folder_param) : $folder_param;
+
+        if (!$folder) {
+            return $query;
+        }
+
+        $query['tax_query'] = [[
+            'taxonomy' => 'emfm_media_folder',
+            'field'    => $field_type,
+            'terms'    => $folder,
+        ]];
+        unset($query['media_folder']);
+
+        return $query;
     }
 
     /**

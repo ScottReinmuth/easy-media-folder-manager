@@ -305,16 +305,13 @@ class EMFM_Plugin {
     public function add_folder_to_media_settings($settings) {
         if (isset($_GET['media_folder'])) {
             $folder = sanitize_text_field($_GET['media_folder']);
-            $field = is_numeric($folder) ? 'term_id' : 'slug';
-            $folder = 'term_id' === $field ? absint($folder) : $folder;
+            $folder = is_numeric($folder) ? (string) absint($folder) : $folder;
             if ($folder) {
-                $settings['defaultProps']['tax_query'] = [
-                    [
-                        'taxonomy' => 'emfm_media_folder',
-                        'field' => $field,
-                        'terms' => $folder,
-                    ]
-                ];
+                // Pass as a simple flat prop so backbone.js sends it as
+                // query[media_folder]=X in every query-attachments AJAX call.
+                // The ajax_query_attachments_args filter then converts it to
+                // a tax_query that WP_Query understands.
+                $settings['defaultProps']['media_folder'] = $folder;
             }
         }
         return $settings;
